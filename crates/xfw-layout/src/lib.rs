@@ -4,22 +4,41 @@ mod render_object_tree;
 use anyhow::anyhow;
 use taffy::prelude::*;
 
-pub use converter::RenderObjectConverter;
+pub use converter::{RenderObjectConverter, StyleAttr};
 pub use render_object_tree::{
     Anchor, Color, ImageFit, Kind, Layer, OverflowBehavior, Rect, RenderObject, RenderObjectTree,
     RenderStyle, TextAlign,
 };
 
+// Stores text content and font size for Taffy measurement.
 #[derive(Clone, Debug)]
 struct TextContext {
     text: String,
     font_size: f32,
 }
 
+/// Computes layout for a render tree using Taffy.
+///
+/// # Examples
+/// ```rust
+/// use taffy::Style as TaffyStyle;
+/// use xfw_layout::{LayoutEngine, RenderObject, RenderObjectTree, RenderStyle};
+/// let root = RenderObject::container(None, TaffyStyle::default(), RenderStyle::default(), vec![]);
+/// let mut tree = RenderObjectTree::new(root);
+/// let mut engine = LayoutEngine::new();
+/// engine.compute_layout(&mut tree).unwrap();
+/// ```
+///
+/// # Errors
+/// Returns an error when the layout tree is inconsistent or Taffy fails.
+///
+/// # Panics
+/// None.
 pub struct LayoutEngine {
     taffy: taffy::TaffyTree<TextContext>,
 }
 
+// Mirrors the render tree for mapping Taffy node ids.
 struct NodeTree {
     id: NodeId,
     children: Vec<NodeTree>,
@@ -32,6 +51,23 @@ impl LayoutEngine {
         }
     }
 
+    /// Computes layout for the entire render tree.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use taffy::Style as TaffyStyle;
+    /// use xfw_layout::{LayoutEngine, RenderObject, RenderObjectTree, RenderStyle};
+    /// let root = RenderObject::container(None, TaffyStyle::default(), RenderStyle::default(), vec![]);
+    /// let mut tree = RenderObjectTree::new(root);
+    /// let mut engine = LayoutEngine::new();
+    /// engine.compute_layout(&mut tree).unwrap();
+    /// ```
+    ///
+    /// # Errors
+    /// Returns an error when the layout tree is inconsistent or Taffy fails.
+    ///
+    /// # Panics
+    /// None.
     pub fn compute_layout(&mut self, tree: &mut RenderObjectTree) -> anyhow::Result<()> {
         self.taffy = taffy::TaffyTree::new();
         let node_tree = self.build_taffy_tree(tree.root())?;

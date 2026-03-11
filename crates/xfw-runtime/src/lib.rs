@@ -15,6 +15,21 @@ use xfw_render::{PixmapRenderer, Renderer};
 
 use crate::state::StateRegistry;
 
+/// Runtime orchestrator for loading Lua configs, computing layout, and rendering.
+///
+/// # Examples
+/// ```rust,no_run
+/// use xfw_cli::RuntimeConfig;
+/// use xfw_runtime::Runtime;
+/// let config = RuntimeConfig { entrypoint: "lua/widgets/status_bar.lua".into() };
+/// let _runtime = Runtime::new(config).unwrap();
+/// ```
+///
+/// # Errors
+/// See `Runtime::new` and other methods for specific error conditions.
+///
+/// # Panics
+/// None.
 pub struct Runtime {
     config: RuntimeConfig,
     lua: lua::LuaEngine,
@@ -28,6 +43,21 @@ pub struct Runtime {
 }
 
 impl Runtime {
+    /// Creates a new runtime instance.
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// use xfw_cli::RuntimeConfig;
+    /// use xfw_runtime::Runtime;
+    /// let config = RuntimeConfig { entrypoint: "lua/widgets/status_bar.lua".into() };
+    /// let _runtime = Runtime::new(config).unwrap();
+    /// ```
+    ///
+    /// # Errors
+    /// Returns an error if Lua, renderer, or platform initialization fails.
+    ///
+    /// # Panics
+    /// None.
     pub fn new(config: RuntimeConfig) -> Result<Self> {
         let lua = lua::LuaEngine::new()?;
         let state_registry = lua.state_registry();
@@ -66,6 +96,22 @@ impl Runtime {
         Ok(())
     }
 
+    /// Runs the runtime event loop.
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// use xfw_cli::RuntimeConfig;
+    /// use xfw_runtime::Runtime;
+    /// let config = RuntimeConfig { entrypoint: "lua/widgets/status_bar.lua".into() };
+    /// let mut runtime = Runtime::new(config).unwrap();
+    /// // runtime.run().unwrap();
+    /// ```
+    ///
+    /// # Errors
+    /// Returns an error when Lua loading, layout, rendering, or platform dispatch fails.
+    ///
+    /// # Panics
+    /// None.
     pub fn run(&mut self) -> Result<()> {
         tracing::info!("entrypoint" = ?self.config.entrypoint, "msg" = "bootstrapping runtime");
         self.load_config()?;
@@ -181,6 +227,22 @@ impl Runtime {
         }
     }
 
+    /// Rebuilds layout and renders after a state change.
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// use xfw_cli::RuntimeConfig;
+    /// use xfw_runtime::Runtime;
+    /// let config = RuntimeConfig { entrypoint: "lua/widgets/status_bar.lua".into() };
+    /// let mut runtime = Runtime::new(config).unwrap();
+    /// let _ = runtime.on_state_change("store.battery");
+    /// ```
+    ///
+    /// # Errors
+    /// Returns an error if tree rebuild or rendering fails.
+    ///
+    /// # Panics
+    /// None.
     pub fn on_state_change(&mut self, path: &str) -> Result<()> {
         tracing::debug!(path = %path, "state changed, rebuilding tree");
         self.rebuild_render_tree()?;
@@ -188,6 +250,22 @@ impl Runtime {
         Ok(())
     }
 
+    /// Loads, lays out, and renders the current config once.
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// use xfw_cli::RuntimeConfig;
+    /// use xfw_runtime::Runtime;
+    /// let config = RuntimeConfig { entrypoint: "lua/widgets/status_bar.lua".into() };
+    /// let mut runtime = Runtime::new(config).unwrap();
+    /// let (_w, _h, _data) = runtime.render_once().unwrap();
+    /// ```
+    ///
+    /// # Errors
+    /// Returns an error if Lua loading, layout, or rendering fails.
+    ///
+    /// # Panics
+    /// None.
     pub fn render_once(&mut self) -> Result<(u32, u32, Vec<u8>)> {
         self.load_config()?;
         self.rebuild_render_tree()?;

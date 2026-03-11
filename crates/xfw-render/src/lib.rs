@@ -7,6 +7,26 @@ use xfw_layout::{
     ImageFit, OverflowBehavior, Rect as XfwRect, RenderObject, RenderObjectTree, TextAlign,
 };
 
+/// A render instruction emitted by `Renderer` and consumed by `PixmapRenderer`.
+///
+/// # Examples
+/// ```rust
+/// use xfw_render::DrawCommand;
+/// use xfw_layout::Rect;
+///
+/// let cmd = DrawCommand::FillRect {
+///     rect: Rect { x: 0.0, y: 0.0, width: 10.0, height: 10.0 },
+///     color: (1.0, 0.0, 0.0, 1.0),
+///     border_radius: None,
+///     opacity: 1.0,
+/// };
+/// ```
+///
+/// # Errors
+/// None.
+///
+/// # Panics
+/// None.
 #[derive(Debug, Clone)]
 pub enum DrawCommand {
     FillRect {
@@ -43,6 +63,27 @@ pub enum DrawCommand {
     PopClip,
 }
 
+/// Renders `DrawCommand`s into a tiny-skia pixmap using CPU rasterization.
+///
+/// # Examples
+/// ```rust
+/// # use xfw_render::{DrawCommand, PixmapRenderer};
+/// # use xfw_layout::Rect;
+/// let mut renderer = PixmapRenderer::new(32, 32).unwrap();
+/// renderer.clear((0.0, 0.0, 0.0, 0.0));
+/// renderer.execute(&[DrawCommand::FillRect {
+///     rect: Rect { x: 0.0, y: 0.0, width: 16.0, height: 16.0 },
+///     color: (0.2, 0.3, 0.8, 1.0),
+///     border_radius: None,
+///     opacity: 1.0,
+/// }]).unwrap();
+/// ```
+///
+/// # Errors
+/// See individual methods.
+///
+/// # Panics
+/// None.
 pub struct PixmapRenderer {
     pixmap: Pixmap,
     font_system: FontSystem,
@@ -50,7 +91,32 @@ pub struct PixmapRenderer {
     clip_stack: Vec<Mask>,
 }
 
+struct TextDrawArgs<'a> {
+    text: &'a str,
+    x: f32,
+    y: f32,
+    width: f32,
+    color: (f32, f32, f32, f32),
+    font_size: f32,
+    font_family: Option<&'a str>,
+    text_align: TextAlign,
+}
+
 impl PixmapRenderer {
+    /// Creates a new pixmap renderer with a fixed-size buffer.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::PixmapRenderer;
+    /// let renderer = PixmapRenderer::new(128, 64).unwrap();
+    /// assert_eq!(renderer.width(), 128);
+    /// ```
+    ///
+    /// # Errors
+    /// Returns an error if the pixmap allocation fails.
+    ///
+    /// # Panics
+    /// None.
     pub fn new(width: u32, height: u32) -> Result<Self> {
         let pixmap =
             Pixmap::new(width, height).ok_or_else(|| anyhow!("Failed to create pixmap"))?;
@@ -64,23 +130,114 @@ impl PixmapRenderer {
         })
     }
 
+    /// Returns the pixmap width in pixels.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::PixmapRenderer;
+    /// let renderer = PixmapRenderer::new(8, 8).unwrap();
+    /// assert_eq!(renderer.width(), 8);
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
     pub fn width(&self) -> u32 {
         self.pixmap.width()
     }
+    /// Returns the pixmap height in pixels.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::PixmapRenderer;
+    /// let renderer = PixmapRenderer::new(8, 12).unwrap();
+    /// assert_eq!(renderer.height(), 12);
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
     pub fn height(&self) -> u32 {
         self.pixmap.height()
     }
+    /// Returns a mutable reference to the underlying pixmap.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::PixmapRenderer;
+    /// let mut renderer = PixmapRenderer::new(4, 4).unwrap();
+    /// let pixmap = renderer.pixmap_mut();
+    /// assert_eq!(pixmap.width(), 4);
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
     pub fn pixmap_mut(&mut self) -> &mut Pixmap {
         &mut self.pixmap
     }
+    /// Returns raw premultiplied RGBA data of the pixmap.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::PixmapRenderer;
+    /// let renderer = PixmapRenderer::new(2, 2).unwrap();
+    /// assert_eq!(renderer.data().len(), 2 * 2 * 4);
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
     pub fn data(&self) -> &[u8] {
         self.pixmap.data()
     }
 
+    /// Clears the pixmap to a solid color.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::PixmapRenderer;
+    /// let mut renderer = PixmapRenderer::new(2, 2).unwrap();
+    /// renderer.clear((0.0, 0.0, 0.0, 0.0));
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
     pub fn clear(&mut self, color: (f32, f32, f32, f32)) {
         self.pixmap.fill(self.to_color(color));
     }
 
+    /// Executes a list of draw commands against the pixmap.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::{DrawCommand, PixmapRenderer};
+    /// # use xfw_layout::Rect;
+    /// let mut renderer = PixmapRenderer::new(8, 8).unwrap();
+    /// renderer.execute(&[DrawCommand::FillRect {
+    ///     rect: Rect { x: 0.0, y: 0.0, width: 4.0, height: 4.0 },
+    ///     color: (1.0, 1.0, 1.0, 1.0),
+    ///     border_radius: None,
+    ///     opacity: 1.0,
+    /// }]).unwrap();
+    /// ```
+    ///
+    /// # Errors
+    /// Returns an error when an image cannot be loaded or a clip mask cannot be built.
+    ///
+    /// # Panics
+    /// None.
     pub fn execute(&mut self, commands: &[DrawCommand]) -> Result<()> {
         for cmd in commands {
             self.execute_command(cmd)?;
@@ -116,16 +273,17 @@ impl PixmapRenderer {
                 font_family,
                 text_align,
             } => {
-                self.draw_text(
+                let args = TextDrawArgs {
                     text,
-                    *x,
-                    *y,
-                    *width,
-                    *color,
-                    *font_size,
-                    font_family.as_deref(),
-                    *text_align,
-                )?;
+                    x: *x,
+                    y: *y,
+                    width: *width,
+                    color: *color,
+                    font_size: *font_size,
+                    font_family: font_family.as_deref(),
+                    text_align: *text_align,
+                };
+                self.draw_text(&args)?;
             }
             DrawCommand::DrawImage {
                 path,
@@ -224,28 +382,18 @@ impl PixmapRenderer {
             .stroke_path(&path, &paint, &stroke, Transform::identity(), mask.as_ref());
     }
 
-    fn draw_text(
-        &mut self,
-        text: &str,
-        x: f32,
-        y: f32,
-        width: f32,
-        color: (f32, f32, f32, f32),
-        font_size: f32,
-        font_family: Option<&str>,
-        text_align: TextAlign,
-    ) -> Result<()> {
-        let line_height = font_size * 1.2;
+    fn draw_text(&mut self, args: &TextDrawArgs<'_>) -> Result<()> {
+        let line_height = args.font_size * 1.2;
         let mut buffer = cosmic_text::Buffer::new(
             &mut self.font_system,
-            cosmic_text::Metrics::new(font_size, line_height),
+            cosmic_text::Metrics::new(args.font_size, line_height),
         );
-        let family = font_family.unwrap_or("sans-serif");
-        let metrics = cosmic_text::Metrics::new(font_size, line_height);
+        let family = args.font_family.unwrap_or("sans-serif");
+        let metrics = cosmic_text::Metrics::new(args.font_size, line_height);
         let attrs = cosmic_text::Attrs::new()
             .family(cosmic_text::Family::Name(family))
             .metrics(metrics);
-        let align = match text_align {
+        let align = match args.text_align {
             TextAlign::Left => cosmic_text::Align::Left,
             TextAlign::Center => cosmic_text::Align::Center,
             TextAlign::Right => cosmic_text::Align::Right,
@@ -253,25 +401,25 @@ impl PixmapRenderer {
         };
         buffer.set_text(
             &mut self.font_system,
-            text,
+            args.text,
             &attrs,
             cosmic_text::Shaping::Advanced,
             Some(align),
         );
-        buffer.set_size(&mut self.font_system, Some(width), None);
+        buffer.set_size(&mut self.font_system, Some(args.width), None);
 
         let text_color = cosmic_text::Color::rgba(
-            (color.0.clamp(0.0, 1.0) * 255.0) as u8,
-            (color.1.clamp(0.0, 1.0) * 255.0) as u8,
-            (color.2.clamp(0.0, 1.0) * 255.0) as u8,
-            (color.3.clamp(0.0, 1.0) * 255.0) as u8,
+            (args.color.0.clamp(0.0, 1.0) * 255.0) as u8,
+            (args.color.1.clamp(0.0, 1.0) * 255.0) as u8,
+            (args.color.2.clamp(0.0, 1.0) * 255.0) as u8,
+            (args.color.3.clamp(0.0, 1.0) * 255.0) as u8,
         );
 
         let pixmap_width = self.pixmap.width() as i32;
         let pixmap_height = self.pixmap.height() as i32;
         let row_stride = self.pixmap.width() as usize;
-        let origin_x = x as i32;
-        let origin_y = (y + font_size).round() as i32;
+        let origin_x = args.x as i32;
+        let origin_y = (args.y + args.font_size).round() as i32;
         let mask = self.current_mask();
         let (mask_data, mask_width) = match mask.as_ref() {
             Some(mask) => (Some(mask.data()), mask.width() as usize),
@@ -309,14 +457,15 @@ impl PixmapRenderer {
                             continue;
                         }
                         let final_alpha = ((u16::from(color.a()) * u16::from(alpha)) / 255) as u8;
-                        let premultiplied = tiny_skia::ColorU8::from_rgba(
+                        let src = tiny_skia::ColorU8::from_rgba(
                             color.r(),
                             color.g(),
                             color.b(),
                             final_alpha,
                         )
                         .premultiply();
-                        pixels[row + xx as usize] = premultiplied;
+                        let dst = pixels[row + xx as usize];
+                        pixels[row + xx as usize] = blend_premultiplied(src, dst);
                     }
                 }
             },
@@ -383,8 +532,10 @@ impl PixmapRenderer {
         };
 
         let transform = Transform::from_scale(scale_x, scale_y).post_translate(origin_x, origin_y);
-        let mut paint = PixmapPaint::default();
-        paint.quality = FilterQuality::Bilinear;
+        let paint = PixmapPaint {
+            quality: FilterQuality::Bilinear,
+            ..Default::default()
+        };
 
         let mask = self.current_mask();
         self.pixmap
@@ -446,6 +597,27 @@ impl PixmapRenderer {
     }
 }
 
+fn blend_premultiplied(
+    src: tiny_skia::PremultipliedColorU8,
+    dst: tiny_skia::PremultipliedColorU8,
+) -> tiny_skia::PremultipliedColorU8 {
+    let sa = src.alpha() as u16;
+    let inv_sa = 255u16.saturating_sub(sa);
+
+    let r = src.red() as u16 + (dst.red() as u16 * inv_sa + 127) / 255;
+    let g = src.green() as u16 + (dst.green() as u16 * inv_sa + 127) / 255;
+    let b = src.blue() as u16 + (dst.blue() as u16 * inv_sa + 127) / 255;
+    let a = src.alpha() as u16 + (dst.alpha() as u16 * inv_sa + 127) / 255;
+
+    tiny_skia::PremultipliedColorU8::from_rgba(
+        r.min(255) as u8,
+        g.min(255) as u8,
+        b.min(255) as u8,
+        a.min(255) as u8,
+    )
+    .unwrap_or(dst)
+}
+
 fn intersect_mask(base: &Mask, next: &mut Mask) {
     let base_data = base.data();
     let next_data = next.data_mut();
@@ -461,7 +633,7 @@ fn rounded_rect_path(rect: Rect, radius: f32) -> Option<tiny_skia::Path> {
         return Some(PathBuilder::from_rect(rect));
     }
 
-    let k = r * 0.552_284_75;
+    let k = r * 0.552_284_8;
     let left = rect.left();
     let right = rect.right();
     let top = rect.top();
@@ -488,6 +660,21 @@ fn rounded_rect_path(rect: Rect, radius: f32) -> Option<tiny_skia::Path> {
     pb.finish()
 }
 
+/// Builds draw commands from a `RenderObjectTree`.
+///
+/// # Examples
+/// ```rust
+/// # use xfw_render::Renderer;
+/// let renderer = Renderer::new(1920, 1080);
+/// let (width, height) = renderer.size();
+/// assert_eq!((width, height), (1920, 1080));
+/// ```
+///
+/// # Errors
+/// None.
+///
+/// # Panics
+/// None.
 pub struct Renderer {
     #[allow(dead_code)]
     width: u32,
@@ -496,22 +683,97 @@ pub struct Renderer {
 }
 
 impl Renderer {
+    /// Creates a new renderer with a fixed output size.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::Renderer;
+    /// let renderer = Renderer::new(128, 64);
+    /// assert_eq!(renderer.size(), (128, 64));
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
     pub fn new(width: u32, height: u32) -> Self {
         Self { width, height }
     }
 
+    /// Creates a renderer using the default size (1920x1080).
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::Renderer;
+    /// let renderer = Renderer::with_default_size();
+    /// assert_eq!(renderer.size(), (1920, 1080));
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
     pub fn with_default_size() -> Self {
         Self::new(1920, 1080)
     }
 
+    /// Returns the configured renderer size.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::Renderer;
+    /// let renderer = Renderer::new(10, 20);
+    /// assert_eq!(renderer.size(), (10, 20));
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
     pub fn size(&self) -> (u32, u32) {
         (self.width, self.height)
     }
 
+    /// Prepares the renderer for a rendering pass.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::Renderer;
+    /// let mut renderer = Renderer::new(1, 1);
+    /// renderer.prepare().unwrap();
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
     pub fn prepare(&mut self) -> Result<()> {
         Ok(())
     }
 
+    /// Converts a render tree into draw commands.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::Renderer;
+    /// # use xfw_layout::{RenderObject, RenderObjectTree, Rect};
+    /// # use taffy::Style as TaffyStyle;
+    /// let root = RenderObject::container(None, TaffyStyle::default(), Default::default(), vec![]);
+    /// let tree = RenderObjectTree::new(root);
+    /// let mut renderer = Renderer::new(1, 1);
+    /// let commands = renderer.render(&tree, None).unwrap();
+    /// assert!(commands.is_empty());
+    /// ```
+    ///
+    /// # Errors
+    /// Returns an error if rendering fails.
+    ///
+    /// # Panics
+    /// None.
     pub fn render(
         &mut self,
         tree: &RenderObjectTree,

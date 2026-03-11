@@ -5,6 +5,19 @@ use super::render_object_tree::{Color, ImageFit, RenderObject, RenderStyle, Text
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr)]
 #[repr(u8)]
+/// Supported style attributes parsed from Lua.
+///
+/// # Examples
+/// ```rust
+/// use xfw_layout::StyleAttr;
+/// assert_eq!(StyleAttr::parse("bg_color"), StyleAttr::BackgroundColor);
+/// ```
+///
+/// # Errors
+/// None.
+///
+/// # Panics
+/// None.
 pub enum StyleAttr {
     FlexDirection,
     FlexWrap,
@@ -70,10 +83,42 @@ impl StyleAttr {
 pub struct RenderObjectConverter;
 
 impl RenderObjectConverter {
+    /// Creates a new converter.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use xfw_layout::RenderObjectConverter;
+    /// let converter = RenderObjectConverter::new();
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
     pub fn new() -> Self {
         Self
     }
 
+    /// Converts a UI node into a render tree node.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use xfw_layout::RenderObjectConverter;
+    /// use xfw_model::{UiNode, NodeKind, StyleSource};
+    ///
+    /// let mut ui_node = UiNode::new(NodeKind::View);
+    /// ui_node.props.style = StyleSource::default();
+    /// ui_node.children = vec![];
+    /// let converter = RenderObjectConverter::new();
+    /// let _render_node = converter.convert(&ui_node);
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
     pub fn convert(&self, ui_node: &UiNode) -> RenderObject {
         let layout_style = self.convert_layout_style(&ui_node.props.style);
         let render_style = self.convert_render_style(&ui_node.props.style);
@@ -170,11 +215,9 @@ impl RenderObjectConverter {
                         }
                     }
                     StyleAttr::Clip => {
-                        if let Some(enabled) = Self::parse_bool(&attr.value) {
-                            if enabled {
-                                style.overflow =
-                                    super::render_object_tree::OverflowBehavior::Hidden;
-                            }
+                        if let Some(enabled) = Self::parse_bool(&attr.value) && enabled {
+                            style.overflow =
+                                super::render_object_tree::OverflowBehavior::Hidden;
                         }
                     }
                     _ => {}
