@@ -8,6 +8,8 @@ Xiaoxigua Flash Widget (xfw) is an ultra-lightweight Wayland bar/widget runtime 
 - Single RenderObject tree (Flutter-style) with both layout style and render style.
 - Observable state graph that invalidates only dirty rectangles; zero redraws when nothing changes.
 - Hot-reload Lua modules without restarting the compositor session.
+- Optional overflow clipping for containers (`overflow = "hidden"` or `clip = true`).
+- Test-time PNG dumps for renderer/runtime inspection.
 
 ## Architecture
 
@@ -52,22 +54,30 @@ README.md
 cargo build --workspace
 
 # run with a sample widget set (Lua defines layout + styles + events)
-cargo run -p xfw -- --config lua/widgets/status_bar.lua
+cargo run -p xfw-cli -- --config lua/widgets/status_bar.lua
 ```
 
 ## Testing
 ```bash
-cargo test --workspace  # 27 tests across all crates
+cargo test --workspace
 ```
 
+### Render Debug Dumps
+- **Renderer tests:** `XFW_RENDER_DUMP=1 cargo test -p xfw-render`
+  - Dumps PNGs to `target/xfw-render-dumps/`
+  - Test assets in `target/xfw-render-test-assets/`
+- **Runtime tests:** `XFW_RUNTIME_DUMP=1 cargo test -p xfw-runtime`
+  - Dumps PNGs to `target/xfw-runtime-dumps/frame.png`
+  - Set `XFW_RUNTIME_DUMP_NAME` to customize the filename
+
 ## Configuration Model
-- **Lua-first:** Every widget layout, style, and event binding is authored in Lua (`lua/widgets/*.lua`). The runtime loads the Lua tree through `mlua`, diffs changes, and reacts without restarting.
+- **Lua-first:** Every widget layout, style, and event binding is authored in Lua (`lua/widgets/*.lua`). The runtime loads the Lua tree through `mlua` and reacts without restarting.
 - **State + Logic:** Lua modules describe observable stores, IPC handlers, and view trees in one place. Rust stays focused on layout math, rendering, and Wayland glue.
 - **Future styling options:** Additional style descriptions (SCSS/CSS translators, theming DSLs) can compile down to the same Lua schema later, but raw Lua definitions remain the priority for now.
 
 ## Next Steps
-1. Implement the Phase 1 "Canvas" milestone (Wayland surface + pixel buffer test pattern).
-2. Finalize the Lua DSL schema (`docs/lua_dsl.md`) and bridge it inside `runtime::lua`.
-3. Flesh out the dirty-rectangle renderer and benchmarking harness.
+1. Wire `xfw-render` output into Wayland buffers (`xfw-platform`).
+2. Flesh out dirty-rectangle tracking and partial rerendering.
+3. Extend Lua DSL coverage and validate style schemas (`docs/lua_dsl.md`).
 
-See `docs/configuration.md` for Lua config expectations, `docs/examples/hardware_widgets.lua` for an annotated speaker/battery widget script, and `docs/roadmap.md` for the detailed multi-phase plan.
+See `docs/configuration.md` for Lua config expectations and `docs/roadmap.md` for the detailed multi-phase plan.
