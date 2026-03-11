@@ -311,8 +311,12 @@ fn maybe_dump_png(name: &str, renderer: &mut PixmapRenderer) {
     if std::env::var_os("XFW_RENDER_DUMP").is_none() {
         return;
     }
-    let dir = Path::new("target/xfw-render-dumps");
-    if let Err(err) = create_dir_all(dir) {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("target")
+        .join("xfw-render-dumps");
+    if let Err(err) = create_dir_all(&dir) {
         eprintln!("Failed to create dump dir: {err}");
         return;
     }
@@ -323,8 +327,12 @@ fn maybe_dump_png(name: &str, renderer: &mut PixmapRenderer) {
 }
 
 fn create_test_png(name: &str, width: u32, height: u32) -> std::path::PathBuf {
-    let dir = Path::new("target/xfw-render-test-assets");
-    if let Err(err) = create_dir_all(dir) {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("target")
+        .join("xfw-render-test-assets");
+    if let Err(err) = create_dir_all(&dir) {
         panic!("Failed to create test assets dir: {err}");
     }
     let path = dir.join(format!("{name}.png"));
