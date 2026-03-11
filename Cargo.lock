@@ -1309,6 +1309,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tracing",
+ "tracing-subscriber",
  "xfw-cli",
  "xfw-layout",
  "xfw-model",

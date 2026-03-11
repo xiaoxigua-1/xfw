@@ -28,6 +28,8 @@ pub enum StyleAttr {
     Opacity,
     TextAlign,
     ImageFit,
+    Overflow,
+    Clip,
     Unknown,
 }
 
@@ -58,6 +60,8 @@ impl StyleAttr {
             "opacity" => StyleAttr::Opacity,
             "text_align" => StyleAttr::TextAlign,
             "image_fit" => StyleAttr::ImageFit,
+            "overflow" => StyleAttr::Overflow,
+            "clip" => StyleAttr::Clip,
             _ => StyleAttr::Unknown,
         }
     }
@@ -158,6 +162,19 @@ impl RenderObjectConverter {
                     StyleAttr::ImageFit => {
                         if let Some(s) = Self::parse_string(&attr.value) {
                             style.image_fit = Some(ImageFit::parse(&s));
+                        }
+                    }
+                    StyleAttr::Overflow => {
+                        if let Some(s) = Self::parse_string(&attr.value) {
+                            style.overflow = super::render_object_tree::OverflowBehavior::parse(&s);
+                        }
+                    }
+                    StyleAttr::Clip => {
+                        if let Some(enabled) = Self::parse_bool(&attr.value) {
+                            if enabled {
+                                style.overflow =
+                                    super::render_object_tree::OverflowBehavior::Hidden;
+                            }
                         }
                     }
                     _ => {}
@@ -384,6 +401,20 @@ impl RenderObjectConverter {
     fn parse_number_string(s: &str) -> Option<f32> {
         let token = s.replace("px", "").trim().to_string();
         token.parse::<f32>().ok()
+    }
+
+    fn parse_bool(value: &StyleValue) -> Option<bool> {
+        match value {
+            StyleValue::Bool(b) => Some(*b),
+            StyleValue::String(s) => match s.to_lowercase().as_str() {
+                "true" | "1" | "yes" => Some(true),
+                "false" | "0" | "no" => Some(false),
+                _ => None,
+            },
+            StyleValue::Number(n) => Some(*n != 0.0),
+            StyleValue::Integer(i) => Some(*i != 0),
+            _ => None,
+        }
     }
 }
 

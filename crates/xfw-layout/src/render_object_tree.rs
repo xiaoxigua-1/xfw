@@ -41,6 +41,24 @@ pub struct RenderStyle {
     pub opacity: Option<f32>,
     pub text_align: Option<TextAlign>,
     pub image_fit: Option<ImageFit>,
+    pub overflow: OverflowBehavior,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, strum::FromRepr)]
+#[repr(u8)]
+pub enum OverflowBehavior {
+    #[default]
+    Visible,
+    Hidden,
+}
+
+impl OverflowBehavior {
+    pub fn parse(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "hidden" | "clip" => OverflowBehavior::Hidden,
+            _ => OverflowBehavior::Visible,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, strum::FromRepr)]

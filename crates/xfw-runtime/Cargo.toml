@@ -11,6 +11,7 @@ lua_vanilla = ["mlua/lua54"]
 
 [dev-dependencies]
 tempfile = "3"
+tracing-subscriber = "0.3"
 
 [dependencies]
 anyhow.workspace = true
