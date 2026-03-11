@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 use taffy::style::Style as TaffyStyle;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -10,7 +11,7 @@ pub struct Anchor {
 }
 
 impl Anchor {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         let parts: Vec<&str> = s.split_whitespace().collect();
         let mut anchor = Anchor::default();
         for part in parts {
@@ -34,7 +35,8 @@ impl Anchor {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, strum::FromRepr)]
+#[repr(u8)]
 pub enum Layer {
     #[default]
     Overlay,
@@ -43,7 +45,7 @@ pub enum Layer {
 }
 
 impl Layer {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s {
             "background" => Layer::Background,
             "top" => Layer::Top,

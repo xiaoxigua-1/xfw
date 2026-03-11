@@ -22,12 +22,13 @@ pub struct Runtime {
     renderer: Renderer,
     platform: PlatformSurface,
     render_tree: Option<RenderObjectTree>,
+    #[allow(dead_code)]
     state_registry: Arc<RwLock<StateRegistry>>,
 }
 
 impl Runtime {
     pub fn new(config: RuntimeConfig) -> Result<Self> {
-        let mut lua = lua::LuaEngine::new()?;
+        let lua = lua::LuaEngine::new()?;
         let state_registry = lua.state_registry();
         let layout = LayoutEngine::new();
         let renderer = Renderer::with_default_size();

@@ -5,7 +5,8 @@ use taffy::prelude::*;
 
 pub use converter::RenderObjectConverter;
 pub use render_object_tree::{
-    Anchor, Color, Kind, Layer, Rect, RenderObject, RenderObjectTree, RenderStyle,
+    Anchor, Color, ImageFit, Kind, Layer, Rect, RenderObject, RenderObjectTree, RenderStyle,
+    TextAlign,
 };
 
 pub struct LayoutEngine {
@@ -37,8 +38,8 @@ impl LayoutEngine {
 
         self.taffy.compute_layout(taffy_node, Size::MAX_CONTENT)?;
 
-        let layout = self.taffy.layout(taffy_node)?;
-        *node.rect_mut() = Rect::from(&*layout);
+let layout = self.taffy.layout(taffy_node)?;
+    *node.rect_mut() = Rect::from(layout);
 
         if let Some(children) = node.children_mut() {
             for child in children.iter_mut() {

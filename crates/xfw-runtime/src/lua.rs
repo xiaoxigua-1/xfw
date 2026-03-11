@@ -7,7 +7,7 @@ use mlua::{Lua, RegistryKey, Table, Value};
 use parking_lot::RwLock;
 use xfw_model::UiNode;
 
-use crate::state::{NodeId, StateChange, StateRegistry, StateSubscriber};
+use crate::state::{NodeId, StateChange, StateRegistry};
 use crate::tree::ViewTreeBuilder;
 
 pub struct LuaEngine {
@@ -44,7 +44,7 @@ impl LuaEngine {
         self.lua.globals().set(
             "__xfw_register_state",
             self.lua
-                .create_function(move |lua, (node_id, path): (usize, String)| {
+                .create_function(move |_lua, (node_id, path): (usize, String)| {
                     let mut reg = registry.write();
                     reg.register(path.clone().into(), NodeId::new(node_id));
                     tracing::debug!(node_id = node_id, path = %path, "registered state dependency");
@@ -55,7 +55,7 @@ impl LuaEngine {
         let registry = self.state_registry.clone();
         self.lua.globals().set(
             "__xfw_unregister_node",
-            self.lua.create_function(move |lua, node_id: usize| {
+            self.lua.create_function(move |_lua, node_id: usize| {
                 let mut reg = registry.write();
                 reg.unregister_node(NodeId::new(node_id));
                 tracing::debug!(node_id = node_id, "unregistered node");
@@ -67,14 +67,14 @@ impl LuaEngine {
         self.lua.globals().set(
             "__xfw_notify_state_change",
             self.lua
-                .create_function(move |lua, (path, value): (String, String)| {
+                .create_function(move |_lua, (path, value): (String, String)| {
                     let reg = registry.read();
                     let affected = reg.get_affected_nodes(&path);
 
                     let json_value: serde_json::Value =
                         serde_json::from_str(&value).unwrap_or(serde_json::Value::Null);
 
-                    let change = StateChange {
+                    let _change = StateChange {
                         path: path.clone().into(),
                         value: json_value,
                     };
@@ -184,7 +184,8 @@ package.path = package.path .. ';' .. dir .. '/?.lua;' .. dir .. '/?/init.lua;' 
                 let affected = reg.get_affected_nodes(&path);
                 let json_value: serde_json::Value =
                     serde_json::from_str(&value).unwrap_or(serde_json::Value::Null);
-                let change = StateChange {
+
+                let _change = StateChange {
                     path: path.clone().into(),
                     value: json_value,
                 };

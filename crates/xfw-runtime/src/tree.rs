@@ -32,7 +32,7 @@ impl ViewTreeBuilder {
         let kind_str: Option<String> = table.get("kind").ok();
         let kind = kind_str
             .as_deref()
-            .map(NodeKind::from_str)
+            .map(NodeKind::parse)
             .unwrap_or(NodeKind::View);
 
         let mut node = UiNode::new(kind);
@@ -79,6 +79,7 @@ impl ViewTreeBuilder {
         }
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn convert_style_value(&self, value: Value) -> Result<Option<StyleValue>> {
         Ok(match value {
             Value::Nil => None,

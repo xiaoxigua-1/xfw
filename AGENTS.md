@@ -93,6 +93,7 @@ xfw/
 * **Testing Directory:** All unit tests must be uniformly placed under the `tests/` directory of their respective crates. Avoid cluttering the `src/` directory with test modules.
 * **No Magic Strings:** Strictly avoid hardcoding string comparisons in your logic (e.g., `if status == "active"`). Instead, uniformly use `enum`s to represent states and variants. This prevents typos, ensures type safety, and maintains high code readability.
 * **Eliminating Code Duplication:** When standard generics cannot solve the problem, use macro_rules! to eliminate boilerplate by automatically generating identical code structures across multiple distinct types.
+* **Tiered Documentation:** Differentiate comment depth based on visibility. For public APIs (`pub`), provide exhaustive `rustdoc` comments (`///`) detailing usage, along with `# Examples`, `# Errors`, and `# Panics` sections. For internal implementations, keep comments brief: summarize the function/struct's core purpose and explicitly state what data each field stores without unnecessary fluff.
 
 ### Lua Guidelines 🌙
 
