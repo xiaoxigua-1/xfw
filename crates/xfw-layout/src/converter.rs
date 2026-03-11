@@ -1,9 +1,10 @@
 use taffy::prelude::*;
 use xfw_model::{ContentSource, NodeKind, StyleSource, StyleValue, UiNode};
 
-use super::render_object_tree::{Color, RenderObject, RenderStyle};
+use super::render_object_tree::{Color, ImageFit, RenderObject, RenderStyle, TextAlign};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr)]
+#[repr(u8)]
 pub enum StyleAttr {
     FlexDirection,
     FlexWrap,
@@ -17,12 +18,23 @@ pub enum StyleAttr {
     MaxWidth,
     MaxHeight,
     Gap,
+    Color,
+    FontSize,
+    FontFamily,
+    BackgroundColor,
+    BorderColor,
+    BorderWidth,
+    BorderRadius,
+    Opacity,
+    TextAlign,
+    ImageFit,
     Unknown,
 }
 
 impl StyleAttr {
-    pub fn from_str(s: &str) -> Self {
-        match s {
+    pub fn parse(s: &str) -> Self {
+        let lower = s.replace('-', "_").to_lowercase();
+        match lower.as_str() {
             "flex_direction" => StyleAttr::FlexDirection,
             "flex_wrap" => StyleAttr::FlexWrap,
             "flex_grow" => StyleAttr::FlexGrow,
@@ -36,6 +48,16 @@ impl StyleAttr {
             "max_height" => StyleAttr::MaxHeight,
             "gap" => StyleAttr::Gap,
             "flex" => StyleAttr::FlexGrow,
+            "color" => StyleAttr::Color,
+            "font_size" => StyleAttr::FontSize,
+            "font_family" => StyleAttr::FontFamily,
+            "bg_color" | "background" | "background_color" => StyleAttr::BackgroundColor,
+            "border_color" => StyleAttr::BorderColor,
+            "border_width" => StyleAttr::BorderWidth,
+            "border_radius" => StyleAttr::BorderRadius,
+            "opacity" => StyleAttr::Opacity,
+            "text_align" => StyleAttr::TextAlign,
+            "image_fit" => StyleAttr::ImageFit,
             _ => StyleAttr::Unknown,
         }
     }
@@ -100,27 +122,43 @@ impl RenderObjectConverter {
         let mut style = RenderStyle::default();
         if let StyleSource::Static(entries) = style_source {
             for attr in entries {
-                match attr.name.as_str() {
-                    "color" => {
+                match StyleAttr::parse(&attr.name) {
+                    StyleAttr::Color => {
                         style.color =
                             Self::parse_string(&attr.value).and_then(|s| Color::from_hex(&s));
                     }
-                    "font_size" | "font-size" => {
+                    StyleAttr::FontSize => {
                         style.font_size = Self::parse_single_number(&attr.value);
                     }
-                    "bg_color" | "background" | "background_color" => {
+                    StyleAttr::FontFamily => {
+                        style.font_family = Self::parse_string(&attr.value);
+                    }
+                    StyleAttr::BackgroundColor => {
                         style.background_color =
                             Self::parse_string(&attr.value).and_then(|s| Color::from_hex(&s));
                     }
-                    "border_color" | "border-color" => {
+                    StyleAttr::BorderColor => {
                         style.border_color =
                             Self::parse_string(&attr.value).and_then(|s| Color::from_hex(&s));
                     }
-                    "border_radius" | "border-radius" => {
+                    StyleAttr::BorderWidth => {
+                        style.border_width = Self::parse_single_number(&attr.value);
+                    }
+                    StyleAttr::BorderRadius => {
                         style.border_radius = Self::parse_single_number(&attr.value);
                     }
-                    "opacity" => {
+                    StyleAttr::Opacity => {
                         style.opacity = Self::parse_single_number(&attr.value);
+                    }
+                    StyleAttr::TextAlign => {
+                        if let Some(s) = Self::parse_string(&attr.value) {
+                            style.text_align = Some(TextAlign::parse(&s));
+                        }
+                    }
+                    StyleAttr::ImageFit => {
+                        if let Some(s) = Self::parse_string(&attr.value) {
+                            style.image_fit = Some(ImageFit::parse(&s));
+                        }
                     }
                     _ => {}
                 }
@@ -141,7 +179,7 @@ impl RenderObjectConverter {
 
         if let StyleSource::Static(entries) = style_source {
             for attr in entries {
-                match StyleAttr::from_str(&attr.name) {
+                match StyleAttr::parse(&attr.name) {
                     StyleAttr::FlexDirection => {
                         style.flex_direction = Self::parse_flex_direction(&attr.value);
                     }
@@ -182,7 +220,7 @@ impl RenderObjectConverter {
                             height: LengthPercentage::length(n),
                         };
                     }
-                    StyleAttr::Unknown => {}
+                    _ => {}
                 }
             }
         }
@@ -244,6 +282,7 @@ impl RenderObjectConverter {
         }
     }
 
+    #[allow(dead_code)]
     fn parse_align_content(value: &StyleValue) -> Option<AlignContent> {
         match value {
             StyleValue::String(s) => match s.as_str() {
@@ -259,6 +298,7 @@ impl RenderObjectConverter {
         }
     }
 
+    #[allow(dead_code)]
     fn parse_rect(value: &StyleValue) -> Rect<LengthPercentage> {
         if let Some(n) = Self::parse_single_number(value) {
             Rect {
@@ -272,6 +312,7 @@ impl RenderObjectConverter {
         }
     }
 
+    #[allow(dead_code)]
     fn parse_rect_auto(value: &StyleValue) -> Rect<LengthPercentageAuto> {
         if let Some(n) = Self::parse_single_number(value) {
             Rect {
@@ -285,6 +326,7 @@ impl RenderObjectConverter {
         }
     }
 
+    #[allow(dead_code)]
     fn parse_size(value: &StyleValue) -> Size<LengthPercentage> {
         if let Some(n) = Self::parse_single_number(value) {
             Size {
@@ -296,6 +338,7 @@ impl RenderObjectConverter {
         }
     }
 
+    #[allow(dead_code)]
     fn parse_display(value: &StyleValue) -> Display {
         match value {
             StyleValue::String(s) => match s.as_str() {
@@ -309,6 +352,7 @@ impl RenderObjectConverter {
         }
     }
 
+    #[allow(dead_code)]
     fn parse_position(value: &StyleValue) -> Position {
         match value {
             StyleValue::String(s) => match s.as_str() {

@@ -33,10 +33,60 @@ impl Color {
 pub struct RenderStyle {
     pub color: Option<Color>,
     pub font_size: Option<f32>,
+    pub font_family: Option<String>,
     pub background_color: Option<Color>,
     pub border_color: Option<Color>,
+    pub border_width: Option<f32>,
     pub border_radius: Option<f32>,
     pub opacity: Option<f32>,
+    pub text_align: Option<TextAlign>,
+    pub image_fit: Option<ImageFit>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, strum::FromRepr)]
+#[repr(u8)]
+pub enum TextAlign {
+    #[default]
+    Left,
+    Center,
+    Right,
+    Justify,
+}
+
+impl TextAlign {
+    pub fn parse(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "center" => TextAlign::Center,
+            "right" => TextAlign::Right,
+            "justify" => TextAlign::Justify,
+            _ => TextAlign::Left,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, strum::FromRepr)]
+#[repr(u8)]
+pub enum ImageFit {
+    #[default]
+    Fill,
+    Contain,
+    Cover,
+    FitWidth,
+    FitHeight,
+    None,
+}
+
+impl ImageFit {
+    pub fn parse(s: &str) -> Self {
+        match s.to_lowercase().replace('_', "-").as_str() {
+            "contain" => ImageFit::Contain,
+            "cover" => ImageFit::Cover,
+            "fit-width" => ImageFit::FitWidth,
+            "fit-height" => ImageFit::FitHeight,
+            "none" => ImageFit::None,
+            _ => ImageFit::Fill,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -78,7 +128,7 @@ pub struct Anchor {
 }
 
 impl Anchor {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         let parts: Vec<&str> = s.split_whitespace().collect();
         let mut anchor = Anchor::default();
         for part in parts {
@@ -103,7 +153,7 @@ pub enum Layer {
 }
 
 impl Layer {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s {
             "background" => Layer::Background,
             "top" => Layer::Top,
@@ -302,10 +352,8 @@ fn find_by_prefix_impl<'a>(
     prefix: &str,
     results: &mut Vec<&'a RenderObject>,
 ) {
-    if let Some(id) = node.id() {
-        if id.starts_with(prefix) {
-            results.push(node);
-        }
+    if let Some(id) = node.id() && id.starts_with(prefix) {
+        results.push(node);
     }
     if let Some(children) = node.children() {
         for child in children.iter() {

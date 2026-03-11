@@ -19,7 +19,8 @@ impl UiNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, strum::FromRepr)]
+#[repr(u8)]
 pub enum NodeKind {
     View,
     Text,
@@ -32,7 +33,7 @@ pub enum NodeKind {
 }
 
 impl NodeKind {
-    pub fn from_str(value: &str) -> Self {
+    pub fn parse(value: &str) -> Self {
         match value {
             "view" => Self::View,
             "text" => Self::Text,
@@ -65,17 +66,12 @@ impl Default for NodeProps {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum StyleSource {
+    #[default]
     None,
     Static(StyleMap),
     Dynamic,
-}
-
-impl Default for StyleSource {
-    fn default() -> Self {
-        StyleSource::None
-    }
 }
 
 pub type StyleMap = Vec<StyleAttribute>;

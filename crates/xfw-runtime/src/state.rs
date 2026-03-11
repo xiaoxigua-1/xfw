@@ -84,23 +84,20 @@ impl std::fmt::Debug for StateRegistry {
 
 impl Default for StateRegistry {
     fn default() -> Self {
-        Self {
-            dependencies: HashMap::new(),
-            subscribers: Vec::new(),
-        }
+        Self::new()
     }
 }
 
 impl StateRegistry {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            dependencies: HashMap::new(),
+            subscribers: Vec::new(),
+        }
     }
 
     pub fn register(&mut self, path: StatePath, node_id: NodeId) {
-        self.dependencies
-            .entry(path)
-            .or_insert_with(Vec::new)
-            .push(node_id);
+        self.dependencies.entry(path).or_default().push(node_id);
     }
 
     pub fn unregister_node(&mut self, node_id: NodeId) {

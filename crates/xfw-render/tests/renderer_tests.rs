@@ -52,7 +52,12 @@ fn test_draw_commands_with_background() {
 
     assert_eq!(commands.len(), 1);
     match &commands[0] {
-        DrawCommand::FillRect { rect, color } => {
+        DrawCommand::FillRect {
+            rect,
+            color,
+            border_radius: _,
+            opacity: _,
+        } => {
             assert_eq!(rect.width, 100.0);
             assert_eq!(color.0, 1.0);
         }
@@ -99,8 +104,11 @@ fn test_draw_commands_text_node() {
             text,
             x,
             y,
+            width: _,
             color,
             font_size,
+            font_family: _,
+            text_align: _,
         } => {
             assert_eq!(text, "Hello");
             assert_eq!(*x, 10.0);
@@ -135,7 +143,11 @@ fn test_draw_commands_image_node() {
 
     assert_eq!(commands.len(), 1);
     match &commands[0] {
-        DrawCommand::DrawImage { path, rect } => {
+        DrawCommand::DrawImage {
+            path,
+            rect,
+            image_fit: _,
+        } => {
             assert_eq!(path, "/path/to/image.png");
             assert_eq!(rect.width, 100.0);
         }
