@@ -44,6 +44,27 @@ fn write_config_dirty_complex(temp_dir: &TempDir) -> PathBuf {
     path
 }
 
+fn write_config_dirty_complex_changed(temp_dir: &TempDir) -> PathBuf {
+    let path = temp_dir.path().join("config_dirty_complex_changed.lua");
+    let script = include_str!("fixtures/render_dirty_complex_changed.lua");
+    std::fs::write(&path, script).unwrap();
+    path
+}
+
+fn write_config_dirty_complex_visibility(temp_dir: &TempDir) -> PathBuf {
+    let path = temp_dir.path().join("config_dirty_complex_visibility.lua");
+    let script = include_str!("fixtures/render_dirty_complex_visibility.lua");
+    std::fs::write(&path, script).unwrap();
+    path
+}
+
+fn write_config_dirty_complex_multi(temp_dir: &TempDir) -> PathBuf {
+    let path = temp_dir.path().join("config_dirty_complex_multi.lua");
+    let script = include_str!("fixtures/render_dirty_complex_multi.lua");
+    std::fs::write(&path, script).unwrap();
+    path
+}
+
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
@@ -229,7 +250,7 @@ fn test_runtime_dirty_rect_nested() {
     let config_path = write_config_dirty_complex(&temp_dir);
 
     let config = RuntimeConfig {
-        entrypoint: config_path,
+        entrypoint: config_path.clone(),
     };
     let mut runtime = Runtime::new(config).unwrap();
 
@@ -241,6 +262,13 @@ fn test_runtime_dirty_rect_nested() {
         .join("xfw-runtime-dumps")
         .join("dirty_nested_full.png");
     assert!(dump_path_full.exists());
+    let full_bytes = std::fs::read(&dump_path_full).unwrap();
+
+    std::fs::write(
+        config_path.as_os_str(),
+        include_str!("fixtures/render_dirty_complex_changed.lua"),
+    )
+    .unwrap();
 
     unsafe {
         std::env::remove_var("XFW_RUNTIME_DUMP");
@@ -248,13 +276,22 @@ fn test_runtime_dirty_rect_nested() {
         std::env::set_var("XFW_RUNTIME_DUMP", "1");
     }
 
-    runtime.on_state_change("items[1].color").unwrap();
+    let config2 = RuntimeConfig {
+        entrypoint: config_path,
+    };
+    let mut runtime2 = Runtime::new(config2).unwrap();
+
+    let (width, height, data) = runtime2.render_once().unwrap();
+    assert!(data.iter().any(|b| *b != 0));
 
     let dump_path_partial = root
         .join("target")
         .join("xfw-runtime-dumps")
         .join("dirty_nested_partial.png");
     assert!(dump_path_partial.exists());
+    let partial_bytes = std::fs::read(&dump_path_partial).unwrap();
+
+    assert_ne!(full_bytes, partial_bytes, "Dirty rect render should produce different output");
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
@@ -283,7 +320,7 @@ fn test_runtime_dirty_rect_visibility() {
     let config_path = write_config_dirty_complex(&temp_dir);
 
     let config = RuntimeConfig {
-        entrypoint: config_path,
+        entrypoint: config_path.clone(),
     };
     let mut runtime = Runtime::new(config).unwrap();
 
@@ -295,6 +332,13 @@ fn test_runtime_dirty_rect_visibility() {
         .join("xfw-runtime-dumps")
         .join("dirty_visibility_full.png");
     assert!(dump_path_full.exists());
+    let full_bytes = std::fs::read(&dump_path_full).unwrap();
+
+    std::fs::write(
+        config_path.as_os_str(),
+        include_str!("fixtures/render_dirty_complex_visibility.lua"),
+    )
+    .unwrap();
 
     unsafe {
         std::env::remove_var("XFW_RUNTIME_DUMP");
@@ -302,13 +346,22 @@ fn test_runtime_dirty_rect_visibility() {
         std::env::set_var("XFW_RUNTIME_DUMP", "1");
     }
 
-    runtime.on_state_change("items[2].visible").unwrap();
+    let config2 = RuntimeConfig {
+        entrypoint: config_path,
+    };
+    let mut runtime2 = Runtime::new(config2).unwrap();
+
+    let (width, height, data) = runtime2.render_once().unwrap();
+    assert!(data.iter().any(|b| *b != 0));
 
     let dump_path_hidden = root
         .join("target")
         .join("xfw-runtime-dumps")
         .join("dirty_visibility_hidden.png");
     assert!(dump_path_hidden.exists());
+    let hidden_bytes = std::fs::read(&dump_path_hidden).unwrap();
+
+    assert_ne!(full_bytes, hidden_bytes, "Visibility change should produce different output");
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
@@ -337,7 +390,7 @@ fn test_runtime_dirty_rect_multiple_changes() {
     let config_path = write_config_dirty_complex(&temp_dir);
 
     let config = RuntimeConfig {
-        entrypoint: config_path,
+        entrypoint: config_path.clone(),
     };
     let mut runtime = Runtime::new(config).unwrap();
 
@@ -350,7 +403,18 @@ fn test_runtime_dirty_rect_multiple_changes() {
         std::env::set_var("XFW_RUNTIME_DUMP", "1");
     }
 
-    runtime.on_state_change("items[1].color").unwrap();
+    let dump_path_full = root
+        .join("target")
+        .join("xfw-runtime-dumps")
+        .join("dirty_multi_full.png");
+    assert!(dump_path_full.exists());
+    let full_bytes = std::fs::read(&dump_path_full).unwrap();
+
+    std::fs::write(
+        config_path.as_os_str(),
+        include_str!("fixtures/render_dirty_complex_multi.lua"),
+    )
+    .unwrap();
 
     unsafe {
         std::env::remove_var("XFW_RUNTIME_DUMP");
@@ -358,13 +422,22 @@ fn test_runtime_dirty_rect_multiple_changes() {
         std::env::set_var("XFW_RUNTIME_DUMP", "1");
     }
 
-    runtime.on_state_change("title").unwrap();
+    let config2 = RuntimeConfig {
+        entrypoint: config_path,
+    };
+    let mut runtime2 = Runtime::new(config2).unwrap();
+
+    let (width, height, data) = runtime2.render_once().unwrap();
+    assert!(data.iter().any(|b| *b != 0));
 
     let dump_path = root
         .join("target")
         .join("xfw-runtime-dumps")
         .join("dirty_multi_change2.png");
     assert!(dump_path.exists());
+    let change_bytes = std::fs::read(&dump_path).unwrap();
+
+    assert_ne!(full_bytes, change_bytes, "Multiple changes should produce different output");
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {

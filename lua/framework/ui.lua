@@ -9,7 +9,7 @@ local function define(kind)
 	return function(props)
 		props = props or {}
 		props.kind = kind
-		props.id = props.id or ("n" .. next_node_id)
+		props.id = props.id or next_node_id
 		next_node_id = next_node_id + 1
 		return normalize_children(props)
 	end
