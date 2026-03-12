@@ -127,3 +127,35 @@ fn test_image_node() {
         panic!("Expected Image node");
     }
 }
+
+#[test]
+fn test_dirty_rects_single_node() {
+    use xfw_layout::Rect;
+
+    let node = RenderObject::container(
+        Some("root".to_string()),
+        TaffyStyle::default(),
+        RenderStyle::default(),
+        vec![],
+    );
+    let tree = RenderObjectTree::new(node);
+
+    let rects = tree.get_dirty_rects(&["root".to_string()]);
+    assert!(!rects.is_empty());
+}
+
+#[test]
+fn test_dirty_bbox_single_node() {
+    use xfw_layout::Rect;
+
+    let node = RenderObject::container(
+        Some("root".to_string()),
+        TaffyStyle::default(),
+        RenderStyle::default(),
+        vec![],
+    );
+    let tree = RenderObjectTree::new(node);
+
+    let bbox = tree.compute_dirty_bbox(&["root".to_string()]);
+    assert!(bbox.is_some());
+}

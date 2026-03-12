@@ -1251,3 +1251,97 @@ fn test_pixmap_renderer_image_opacity_overlay() {
     let inside = pixel_rgba(&pixmap, 20, 20);
     assert!(inside.3 > 0);
 }
+
+#[test]
+fn test_dirty_rect_filtering() {
+    use xfw_layout::Color;
+
+    let root = RenderObject::container(
+        Some("root".to_string()),
+        TaffyStyle::default(),
+        RenderStyle::default(),
+        vec![
+            RenderObject::container(
+                Some("red".to_string()),
+                TaffyStyle::default(),
+                RenderStyle {
+                    background_color: Some(Color {
+                        r: 1.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 1.0,
+                    }),
+                    ..Default::default()
+                },
+                vec![],
+            ),
+            RenderObject::container(
+                Some("green".to_string()),
+                TaffyStyle::default(),
+                RenderStyle {
+                    background_color: Some(Color {
+                        r: 0.0,
+                        g: 1.0,
+                        b: 0.0,
+                        a: 1.0,
+                    }),
+                    ..Default::default()
+                },
+                vec![],
+            ),
+        ],
+    );
+    let mut tree = RenderObjectTree::new(root);
+
+    {
+        let root_node = tree.root_mut();
+        *root_node.rect_mut() = xfw_layout::Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+        };
+    }
+    if let Some(children) = tree.root_mut().children_mut() {
+        if let Some(child) = children.first_mut() {
+            *child.rect_mut() = xfw_layout::Rect {
+                x: 10.0,
+                y: 10.0,
+                width: 30.0,
+                height: 30.0,
+            };
+        }
+        if let Some(child) = children.get_mut(1) {
+            *child.rect_mut() = xfw_layout::Rect {
+                x: 50.0,
+                y: 50.0,
+                width: 30.0,
+                height: 30.0,
+            };
+        }
+    }
+
+    let mut renderer = Renderer::new(100, 100);
+
+    let commands_full = renderer.render(&tree, None).unwrap();
+    let mut pixmap = PixmapRenderer::new(100, 100).unwrap();
+    pixmap.clear((0.0, 0.0, 0.0, 1.0));
+    pixmap.execute(&commands_full).unwrap();
+    maybe_dump_png("dirty_rect_full", &mut pixmap);
+
+    let dirty_rect = xfw_layout::Rect {
+        x: 55.0,
+        y: 55.0,
+        width: 20.0,
+        height: 20.0,
+    };
+    let commands_partial = renderer.render(&tree, Some(dirty_rect)).unwrap();
+    let mut pixmap2 = PixmapRenderer::new(100, 100).unwrap();
+    pixmap2.clear((0.0, 0.0, 0.0, 1.0));
+    pixmap2
+        .execute_with_dirty_rect(&commands_partial, Some(dirty_rect), (0.0, 0.0, 0.0, 1.0))
+        .unwrap();
+    maybe_dump_png("dirty_rect_partial", &mut pixmap2);
+
+    assert!(commands_partial.len() < commands_full.len());
+}

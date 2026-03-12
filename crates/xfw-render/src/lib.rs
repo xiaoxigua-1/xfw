@@ -218,6 +218,75 @@ impl PixmapRenderer {
         self.pixmap.fill(self.to_color(color));
     }
 
+    /// Clears only the specified rectangle to a solid color.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::PixmapRenderer;
+    /// # use xfw_layout::Rect;
+    /// let mut renderer = PixmapRenderer::new(4, 4).unwrap();
+    /// renderer.clear_rect(Rect { x: 1.0, y: 1.0, width: 2.0, height: 2.0 }, (0.0, 0.0, 0.0, 0.0));
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
+    pub fn clear_rect(&mut self, rect: XfwRect, color: (f32, f32, f32, f32)) {
+        if rect.width <= 0.0 || rect.height <= 0.0 {
+            return;
+        }
+
+        let fill_rect =
+            match Rect::from_ltrb(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height) {
+                Some(r) => r,
+                None => return,
+            };
+
+        let mut paint = tiny_skia::Paint::default();
+        paint.set_color(self.to_color(color));
+
+        self.pixmap
+            .fill_rect(fill_rect, &paint, Transform::identity(), None);
+    }
+
+    /// Executes commands with an optional dirty rect for partial rendering.
+    ///
+    /// If dirty_rect is Some, only the dirty area is cleared first.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use xfw_render::{DrawCommand, PixmapRenderer};
+    /// # use xfw_layout::Rect;
+    /// let mut renderer = PixmapRenderer::new(8, 8).unwrap();
+    /// renderer.execute_with_dirty_rect(&[], Some(Rect { x: 0.0, y: 0.0, width: 4.0, height: 4.0 }), (0.0, 0.0, 0.0, 0.0)).unwrap();
+    /// ```
+    ///
+    /// # Errors
+    /// Returns an error when an image cannot be loaded or a clip mask cannot be built.
+    ///
+    /// # Panics
+    /// None.
+    pub fn execute_with_dirty_rect(
+        &mut self,
+        commands: &[DrawCommand],
+        dirty_rect: Option<XfwRect>,
+        bg_color: (f32, f32, f32, f32),
+    ) -> Result<()> {
+        if let Some(rect) = dirty_rect {
+            self.clear_rect(rect, bg_color);
+        } else {
+            self.clear(bg_color);
+        }
+
+        for cmd in commands {
+            self.execute_command(cmd)?;
+        }
+
+        Ok(())
+    }
+
     /// Executes a list of draw commands against the pixmap.
     ///
     /// # Examples
@@ -755,14 +824,14 @@ impl Renderer {
         Ok(())
     }
 
-    /// Converts a render tree into draw commands.
+    /// Converts a render tree into draw commands, optionally filtered by dirty rect.
     ///
     /// # Examples
     /// ```rust
     /// # use xfw_render::Renderer;
-    /// # use xfw_layout::{RenderObject, RenderObjectTree, Rect};
+    /// # use xfw_layout::{RenderObject, RenderObjectTree, Rect, RenderStyle};
     /// # use taffy::Style as TaffyStyle;
-    /// let root = RenderObject::container(None, TaffyStyle::default(), Default::default(), vec![]);
+    /// let root = RenderObject::container(None, TaffyStyle::default(), RenderStyle::default(), vec![]);
     /// let tree = RenderObjectTree::new(root);
     /// let mut renderer = Renderer::new(1, 1);
     /// let commands = renderer.render(&tree, None).unwrap();
@@ -777,11 +846,37 @@ impl Renderer {
     pub fn render(
         &mut self,
         tree: &RenderObjectTree,
-        _dirty_rect: Option<XfwRect>,
+        dirty_rect: Option<XfwRect>,
     ) -> Result<Vec<DrawCommand>> {
         let mut commands = Vec::new();
         self.process_node(tree.root(), &mut commands);
+
+        if let Some(dirty) = dirty_rect {
+            commands.retain(|cmd| self.command_intersects_rect(cmd, dirty));
+        }
+
         Ok(commands)
+    }
+
+    fn command_intersects_rect(&self, cmd: &DrawCommand, rect: XfwRect) -> bool {
+        let cmd_rect = match cmd {
+            DrawCommand::FillRect { rect, .. } => *rect,
+            DrawCommand::StrokeRect { rect, .. } => *rect,
+            DrawCommand::DrawText { x, y, width, .. } => XfwRect {
+                x: *x,
+                y: *y,
+                width: *width,
+                height: 0.0,
+            },
+            DrawCommand::DrawImage { rect, .. } => *rect,
+            DrawCommand::ClipPath { rect, .. } => *rect,
+            DrawCommand::PopClip => return true,
+        };
+
+        !(cmd_rect.x + cmd_rect.width < rect.x
+            || cmd_rect.x > rect.x + rect.width
+            || cmd_rect.y + cmd_rect.height < rect.y
+            || cmd_rect.y > rect.y + rect.height)
     }
 
     #[allow(clippy::only_used_in_recursion)]
