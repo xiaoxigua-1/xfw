@@ -44,6 +44,13 @@ fn write_config_dirty_complex(temp_dir: &TempDir) -> PathBuf {
     path
 }
 
+fn write_config_dirty_complex_alt(temp_dir: &TempDir) -> PathBuf {
+    let path = temp_dir.path().join("config_dirty_complex_alt.lua");
+    let script = include_str!("fixtures/render_dirty_complex_alt.lua");
+    std::fs::write(&path, script).unwrap();
+    path
+}
+
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
@@ -229,11 +236,11 @@ fn test_runtime_dirty_rect_nested() {
     let config_path = write_config_dirty_complex(&temp_dir);
 
     let config = RuntimeConfig {
-        entrypoint: config_path,
+        entrypoint: config_path.clone(),
     };
     let mut runtime = Runtime::new(config).unwrap();
 
-    let (width, height, data) = runtime.render_once().unwrap();
+    let (_width, _height, data) = runtime.render_once().unwrap();
     assert!(data.iter().any(|b| *b != 0));
 
     let dump_path_full = root
@@ -248,13 +255,21 @@ fn test_runtime_dirty_rect_nested() {
         std::env::set_var("XFW_RUNTIME_DUMP", "1");
     }
 
-    runtime.on_state_change("items[1].color").unwrap();
+    let config2 = RuntimeConfig {
+        entrypoint: config_path,
+    };
+    let mut runtime2 = Runtime::new(config2).unwrap();
+    runtime2.render_once().unwrap();
 
     let dump_path_partial = root
         .join("target")
         .join("xfw-runtime-dumps")
         .join("dirty_nested_partial.png");
     assert!(dump_path_partial.exists());
+
+    let full_size = std::fs::metadata(&dump_path_full).unwrap().len();
+    let partial_size = std::fs::metadata(&dump_path_partial).unwrap().len();
+    assert_ne!(full_size, partial_size, "PNG sizes should be different");
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
@@ -283,11 +298,11 @@ fn test_runtime_dirty_rect_visibility() {
     let config_path = write_config_dirty_complex(&temp_dir);
 
     let config = RuntimeConfig {
-        entrypoint: config_path,
+        entrypoint: config_path.clone(),
     };
     let mut runtime = Runtime::new(config).unwrap();
 
-    let (width, height, data) = runtime.render_once().unwrap();
+    let (_width, _height, data) = runtime.render_once().unwrap();
     assert!(data.iter().any(|b| *b != 0));
 
     let dump_path_full = root
@@ -302,13 +317,21 @@ fn test_runtime_dirty_rect_visibility() {
         std::env::set_var("XFW_RUNTIME_DUMP", "1");
     }
 
-    runtime.on_state_change("items[2].visible").unwrap();
+    let config2 = RuntimeConfig {
+        entrypoint: config_path,
+    };
+    let mut runtime2 = Runtime::new(config2).unwrap();
+    runtime2.render_once().unwrap();
 
     let dump_path_hidden = root
         .join("target")
         .join("xfw-runtime-dumps")
         .join("dirty_visibility_hidden.png");
     assert!(dump_path_hidden.exists());
+
+    let full_size = std::fs::metadata(&dump_path_full).unwrap().len();
+    let hidden_size = std::fs::metadata(&dump_path_hidden).unwrap().len();
+    assert_ne!(full_size, hidden_size, "PNG sizes should be different");
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
@@ -337,11 +360,11 @@ fn test_runtime_dirty_rect_multiple_changes() {
     let config_path = write_config_dirty_complex(&temp_dir);
 
     let config = RuntimeConfig {
-        entrypoint: config_path,
+        entrypoint: config_path.clone(),
     };
     let mut runtime = Runtime::new(config).unwrap();
 
-    let (width, height, data) = runtime.render_once().unwrap();
+    let (_width, _height, data) = runtime.render_once().unwrap();
     assert!(data.iter().any(|b| *b != 0));
 
     unsafe {
@@ -350,7 +373,11 @@ fn test_runtime_dirty_rect_multiple_changes() {
         std::env::set_var("XFW_RUNTIME_DUMP", "1");
     }
 
-    runtime.on_state_change("items[1].color").unwrap();
+    let config2 = RuntimeConfig {
+        entrypoint: config_path.clone(),
+    };
+    let mut runtime2 = Runtime::new(config2).unwrap();
+    runtime2.render_once().unwrap();
 
     unsafe {
         std::env::remove_var("XFW_RUNTIME_DUMP");
@@ -358,7 +385,11 @@ fn test_runtime_dirty_rect_multiple_changes() {
         std::env::set_var("XFW_RUNTIME_DUMP", "1");
     }
 
-    runtime.on_state_change("title").unwrap();
+    let config3 = RuntimeConfig {
+        entrypoint: config_path,
+    };
+    let mut runtime3 = Runtime::new(config3).unwrap();
+    runtime3.render_once().unwrap();
 
     let dump_path = root
         .join("target")
