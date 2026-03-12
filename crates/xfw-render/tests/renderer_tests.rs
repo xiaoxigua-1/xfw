@@ -1,7 +1,7 @@
 use std::fs::create_dir_all;
 use std::path::Path;
 use taffy::style::Style as TaffyStyle;
-use xfw_layout::{RenderObject, RenderObjectTree, RenderStyle};
+use xfw_layout::{Color, RenderObject, RenderObjectTree, RenderStyle};
 use xfw_render::{DrawCommand, PixmapRenderer, Renderer};
 
 #[test]
@@ -1254,8 +1254,6 @@ fn test_pixmap_renderer_image_opacity_overlay() {
 
 #[test]
 fn test_dirty_rect_filtering() {
-    use xfw_layout::Color;
-
     let root = RenderObject::container(
         Some("root".to_string()),
         TaffyStyle::default(),
@@ -1344,4 +1342,339 @@ fn test_dirty_rect_filtering() {
     maybe_dump_png("dirty_rect_partial", &mut pixmap2);
 
     assert!(commands_partial.len() < commands_full.len());
+}
+
+#[test]
+fn test_dirty_rect_with_nested_clip() {
+    let root = RenderObject::container(
+        Some("root".to_string()),
+        TaffyStyle::default(),
+        RenderStyle::default(),
+        vec![RenderObject::container(
+            Some("clipper".to_string()),
+            TaffyStyle::default(),
+            RenderStyle {
+                background_color: Some(Color {
+                    r: 0.2,
+                    g: 0.2,
+                    b: 0.3,
+                    a: 1.0,
+                }),
+                overflow: xfw_layout::OverflowBehavior::Hidden,
+                ..Default::default()
+            },
+            vec![
+                RenderObject::container(
+                    Some("child1".to_string()),
+                    TaffyStyle::default(),
+                    RenderStyle {
+                        background_color: Some(Color {
+                            r: 1.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 1.0,
+                        }),
+                        ..Default::default()
+                    },
+                    vec![],
+                ),
+                RenderObject::container(
+                    Some("child2".to_string()),
+                    TaffyStyle::default(),
+                    RenderStyle {
+                        background_color: Some(Color {
+                            r: 0.0,
+                            g: 1.0,
+                            b: 0.0,
+                            a: 1.0,
+                        }),
+                        ..Default::default()
+                    },
+                    vec![],
+                ),
+            ],
+        )],
+    );
+    let mut tree = RenderObjectTree::new(root);
+
+    {
+        let root_node = tree.root_mut();
+        *root_node.rect_mut() = xfw_layout::Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+        };
+    }
+    if let Some(children) = tree.root_mut().children_mut() {
+        if let Some(clipper) = children.first_mut() {
+            *clipper.rect_mut() = xfw_layout::Rect {
+                x: 10.0,
+                y: 10.0,
+                width: 50.0,
+                height: 50.0,
+            };
+            if let Some(grandchildren) = clipper.children_mut() {
+                if let Some(child1) = grandchildren.first_mut() {
+                    *child1.rect_mut() = xfw_layout::Rect {
+                        x: 5.0,
+                        y: 5.0,
+                        width: 30.0,
+                        height: 30.0,
+                    };
+                }
+                if let Some(child2) = grandchildren.get_mut(1) {
+                    *child2.rect_mut() = xfw_layout::Rect {
+                        x: 25.0,
+                        y: 25.0,
+                        width: 30.0,
+                        height: 30.0,
+                    };
+                }
+            }
+        }
+    }
+
+    let mut renderer = Renderer::new(100, 100);
+
+    let commands_full = renderer.render(&tree, None).unwrap();
+    let mut pixmap = PixmapRenderer::new(100, 100).unwrap();
+    pixmap.clear((0.0, 0.0, 0.0, 1.0));
+    pixmap.execute(&commands_full).unwrap();
+    maybe_dump_png("dirty_clip_full", &mut pixmap);
+
+    let dirty_rect = xfw_layout::Rect {
+        x: 15.0,
+        y: 15.0,
+        width: 20.0,
+        height: 20.0,
+    };
+    let commands_partial = renderer.render(&tree, Some(dirty_rect)).unwrap();
+    let mut pixmap2 = PixmapRenderer::new(100, 100).unwrap();
+    pixmap2.clear((0.0, 0.0, 0.0, 1.0));
+    pixmap2
+        .execute_with_dirty_rect(&commands_partial, Some(dirty_rect), (0.0, 0.0, 0.0, 1.0))
+        .unwrap();
+    maybe_dump_png("dirty_clip_partial", &mut pixmap2);
+
+    let has_clip = commands_partial
+        .iter()
+        .any(|c| matches!(c, DrawCommand::ClipPath { .. }));
+    assert!(has_clip, "Should have clip path for overflow:hidden");
+}
+
+#[test]
+fn test_dirty_rect_multiple_areas() {
+    let root = RenderObject::container(
+        Some("root".to_string()),
+        TaffyStyle::default(),
+        RenderStyle::default(),
+        vec![
+            RenderObject::container(
+                Some("red".to_string()),
+                TaffyStyle::default(),
+                RenderStyle {
+                    background_color: Some(Color {
+                        r: 1.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 1.0,
+                    }),
+                    ..Default::default()
+                },
+                vec![],
+            ),
+            RenderObject::container(
+                Some("green".to_string()),
+                TaffyStyle::default(),
+                RenderStyle {
+                    background_color: Some(Color {
+                        r: 0.0,
+                        g: 1.0,
+                        b: 0.0,
+                        a: 1.0,
+                    }),
+                    ..Default::default()
+                },
+                vec![],
+            ),
+            RenderObject::container(
+                Some("blue".to_string()),
+                TaffyStyle::default(),
+                RenderStyle {
+                    background_color: Some(Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 1.0,
+                        a: 1.0,
+                    }),
+                    ..Default::default()
+                },
+                vec![],
+            ),
+        ],
+    );
+    let mut tree = RenderObjectTree::new(root);
+
+    {
+        let root_node = tree.root_mut();
+        *root_node.rect_mut() = xfw_layout::Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+        };
+    }
+    if let Some(children) = tree.root_mut().children_mut() {
+        if let Some(red) = children.first_mut() {
+            *red.rect_mut() = xfw_layout::Rect {
+                x: 5.0,
+                y: 5.0,
+                width: 20.0,
+                height: 20.0,
+            };
+        }
+        if let Some(green) = children.get_mut(1) {
+            *green.rect_mut() = xfw_layout::Rect {
+                x: 40.0,
+                y: 40.0,
+                width: 20.0,
+                height: 20.0,
+            };
+        }
+        if let Some(blue) = children.get_mut(2) {
+            *blue.rect_mut() = xfw_layout::Rect {
+                x: 75.0,
+                y: 75.0,
+                width: 20.0,
+                height: 20.0,
+            };
+        }
+    }
+
+    let mut renderer = Renderer::new(100, 100);
+
+    let commands_full = renderer.render(&tree, None).unwrap();
+    let mut pixmap = PixmapRenderer::new(100, 100).unwrap();
+    pixmap.clear((0.0, 0.0, 0.0, 1.0));
+    pixmap.execute(&commands_full).unwrap();
+    maybe_dump_png("dirty_multi_full", &mut pixmap);
+
+    let dirty_rect = xfw_layout::Rect {
+        x: 5.0,
+        y: 5.0,
+        width: 20.0,
+        height: 20.0,
+    };
+    let commands_partial = renderer.render(&tree, Some(dirty_rect)).unwrap();
+    let mut pixmap2 = PixmapRenderer::new(100, 100).unwrap();
+    pixmap2.clear((0.0, 0.0, 0.0, 1.0));
+    pixmap2
+        .execute_with_dirty_rect(&commands_partial, Some(dirty_rect), (0.0, 0.0, 0.0, 1.0))
+        .unwrap();
+    maybe_dump_png("dirty_multi_partial", &mut pixmap2);
+
+    assert!(commands_partial.len() < commands_full.len());
+}
+
+#[test]
+fn test_dirty_rect_opacity_change() {
+    let root = RenderObject::container(
+        Some("root".to_string()),
+        TaffyStyle::default(),
+        RenderStyle::default(),
+        vec![
+            RenderObject::container(
+                Some("solid".to_string()),
+                TaffyStyle::default(),
+                RenderStyle {
+                    background_color: Some(Color {
+                        r: 1.0,
+                        g: 1.0,
+                        b: 1.0,
+                        a: 1.0,
+                    }),
+                    ..Default::default()
+                },
+                vec![],
+            ),
+            RenderObject::container(
+                Some("transparent".to_string()),
+                TaffyStyle::default(),
+                RenderStyle {
+                    background_color: Some(Color {
+                        r: 1.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 0.5,
+                    }),
+                    ..Default::default()
+                },
+                vec![],
+            ),
+        ],
+    );
+    let mut tree = RenderObjectTree::new(root);
+
+    {
+        let root_node = tree.root_mut();
+        *root_node.rect_mut() = xfw_layout::Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+        };
+    }
+    if let Some(children) = tree.root_mut().children_mut() {
+        if let Some(solid) = children.first_mut() {
+            *solid.rect_mut() = xfw_layout::Rect {
+                x: 10.0,
+                y: 10.0,
+                width: 30.0,
+                height: 30.0,
+            };
+        }
+        if let Some(transparent) = children.get_mut(1) {
+            *transparent.rect_mut() = xfw_layout::Rect {
+                x: 20.0,
+                y: 20.0,
+                width: 30.0,
+                height: 30.0,
+            };
+        }
+    }
+
+    let mut renderer = Renderer::new(100, 100);
+
+    let commands_full = renderer.render(&tree, None).unwrap();
+    let mut pixmap = PixmapRenderer::new(100, 100).unwrap();
+    pixmap.clear((0.0, 0.0, 0.0, 1.0));
+    pixmap.execute(&commands_full).unwrap();
+    maybe_dump_png("dirty_opacity_full", &mut pixmap);
+
+    let dirty_rect = xfw_layout::Rect {
+        x: 15.0,
+        y: 15.0,
+        width: 20.0,
+        height: 20.0,
+    };
+    let commands_partial = renderer.render(&tree, Some(dirty_rect)).unwrap();
+    let mut pixmap2 = PixmapRenderer::new(100, 100).unwrap();
+    pixmap2.clear((0.0, 0.0, 0.0, 1.0));
+    pixmap2
+        .execute_with_dirty_rect(&commands_partial, Some(dirty_rect), (0.0, 0.0, 0.0, 1.0))
+        .unwrap();
+    maybe_dump_png("dirty_opacity_partial", &mut pixmap2);
+
+    let has_transparent = commands_partial.iter().any(|c| {
+        if let DrawCommand::FillRect {
+            color: (_, _, _, a),
+            ..
+        } = c
+        {
+            return *a < 1.0;
+        }
+        false
+    });
+    assert!(has_transparent, "Should render transparent element");
 }
