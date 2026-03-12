@@ -1,21 +1,14 @@
 local Store = UI.state({
     items = {
-        { id = "item1", color = "#ff9a3c" },
+        { id = "item1", color = "#50fa7b" },
         { id = "item2", color = "#3a7ca5" },
     },
-    render_count = 0,
 })
 
-Store.render_count = Store.render_count + 1
-
 local function ItemWidget(props)
-    local bg = props.color
-    if Store.render_count > 1 then
-        bg = "#50fa7b"
-    end
     return View({
         style = {
-            bg_color = bg,
+            bg_color = props.color,
             width = 100,
             height = 50,
             border_radius = 8,
