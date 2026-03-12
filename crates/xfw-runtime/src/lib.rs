@@ -116,7 +116,7 @@ impl Runtime {
         tracing::info!("entrypoint" = ?self.config.entrypoint, "msg" = "bootstrapping runtime");
         self.load_config()?;
         self.rebuild_render_tree()?;
-        self.render_current_tree()?;
+        self.render_current_tree(None)?;
         tracing::info!(msg = "render tree built, ready");
         self.renderer.prepare()?;
         self.platform.dispatch_loop()
@@ -138,12 +138,12 @@ impl Runtime {
         Ok(())
     }
 
-    fn render_current_tree(&mut self) -> Result<()> {
+    fn render_current_tree(&mut self, dirty_rect: Option<xfw_layout::Rect>) -> Result<()> {
         let render_tree = self
             .render_tree
             .as_ref()
             .ok_or_else(|| anyhow!("Render tree is not initialized"))?;
-        let commands = self.renderer.render(render_tree, None)?;
+        let commands = self.renderer.render(render_tree, dirty_rect)?;
         if std::env::var_os("XFW_RENDER_DEBUG").is_some() {
             tracing::info!(node_count = render_tree.node_count(), "render tree built");
             Self::log_render_tree(render_tree.root(), 0);
@@ -153,8 +153,8 @@ impl Runtime {
             }
             Self::dump_debug(render_tree.root(), &commands)?;
         }
-        self.pixmap.clear((0.0, 0.0, 0.0, 0.0));
-        self.pixmap.execute(&commands)?;
+        self.pixmap
+            .execute_with_dirty_rect(&commands, dirty_rect, (0.0, 0.0, 0.0, 0.0))?;
         if std::env::var_os("XFW_RUNTIME_DUMP").is_some() {
             let dump_name =
                 std::env::var("XFW_RUNTIME_DUMP_NAME").unwrap_or_else(|_| "frame.png".to_string());
@@ -245,8 +245,21 @@ impl Runtime {
     /// None.
     pub fn on_state_change(&mut self, path: &str) -> Result<()> {
         tracing::debug!(path = %path, "state changed, rebuilding tree");
+
+        let affected_ids = self
+            .render_tree
+            .as_ref()
+            .map(|tree| tree.get_affected_ids(path))
+            .unwrap_or_default();
+
         self.rebuild_render_tree()?;
-        self.render_current_tree()?;
+
+        let dirty_rect = self
+            .render_tree
+            .as_ref()
+            .and_then(|tree| tree.compute_dirty_bbox(&affected_ids));
+
+        self.render_current_tree(dirty_rect)?;
         Ok(())
     }
 
@@ -269,7 +282,7 @@ impl Runtime {
     pub fn render_once(&mut self) -> Result<(u32, u32, Vec<u8>)> {
         self.load_config()?;
         self.rebuild_render_tree()?;
-        self.render_current_tree()?;
+        self.render_current_tree(None)?;
         Ok((
             self.pixmap.width(),
             self.pixmap.height(),

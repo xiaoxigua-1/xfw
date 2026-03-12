@@ -1046,6 +1046,74 @@ impl RenderObjectTree {
             .filter_map(|n| n.id().map(String::from))
             .collect()
     }
+
+    /// Collects dirty rects for the given node IDs.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use taffy::Style as TaffyStyle;
+    /// use xfw_layout::{RenderObject, RenderObjectTree, RenderStyle};
+    /// let root = RenderObject::container(Some("root".to_string()), TaffyStyle::default(), RenderStyle::default(), vec![]);
+    /// let mut tree = RenderObjectTree::new(root);
+    /// let rects = tree.get_dirty_rects(&["root".to_string()]);
+    /// assert!(!rects.is_empty());
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
+    pub fn get_dirty_rects(&self, node_ids: &[String]) -> Vec<Rect> {
+        node_ids
+            .iter()
+            .filter_map(|id| self.find_by_id(id))
+            .map(|node| *node.rect())
+            .collect()
+    }
+
+    /// Computes the union of all dirty rects as a single bounding box.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use taffy::Style as TaffyStyle;
+    /// use xfw_layout::{RenderObject, RenderObjectTree, RenderStyle};
+    /// let root = RenderObject::container(Some("root".to_string()), TaffyStyle::default(), RenderStyle::default(), vec![]);
+    /// let mut tree = RenderObjectTree::new(root);
+    /// let bbox = tree.compute_dirty_bbox(&["root".to_string()]);
+    /// assert!(bbox.is_some());
+    /// ```
+    ///
+    /// # Errors
+    /// None.
+    ///
+    /// # Panics
+    /// None.
+    pub fn compute_dirty_bbox(&self, node_ids: &[String]) -> Option<Rect> {
+        let rects = self.get_dirty_rects(node_ids);
+        if rects.is_empty() {
+            return None;
+        }
+
+        let mut min_x = f32::MAX;
+        let mut min_y = f32::MAX;
+        let mut max_x = f32::MIN;
+        let mut max_y = f32::MIN;
+
+        for r in &rects {
+            min_x = min_x.min(r.x);
+            min_y = min_y.min(r.y);
+            max_x = max_x.max(r.x + r.width);
+            max_y = max_y.max(r.y + r.height);
+        }
+
+        Some(Rect {
+            x: min_x,
+            y: min_y,
+            width: max_x - min_x,
+            height: max_y - min_y,
+        })
+    }
 }
 
 fn build_map_impl(node: &RenderObject, map: &mut HashMap<String, usize>, depth: usize) {
