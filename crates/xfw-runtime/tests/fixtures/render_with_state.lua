@@ -3,19 +3,13 @@ local Store = UI.state({
         { id = "item1", color = "#ff9a3c" },
         { id = "item2", color = "#3a7ca5" },
     },
-    render_count = 0,
 })
 
-Store.render_count = Store.render_count + 1
-
 local function ItemWidget(props)
-    local bg = props.color
-    if Store.render_count > 1 then
-        bg = "#50fa7b"
-    end
+    print("[LUA] ItemWidget called, props.color type=" .. type(props.color))
     return View({
         style = {
-            bg_color = bg,
+            bg_color = props.color(),
             width = 100,
             height = 50,
             border_radius = 8,
@@ -37,7 +31,7 @@ UI.render(Window({
         View({
             style = { bg_color = "#2f2f45", width = 600, height = 120, border_radius = 12 },
             children = {
-                ItemWidget({ color = Store.items[1].color }),
+                ItemWidget({ color = function() return Store.items[1].color end }),
             },
         }),
         View({

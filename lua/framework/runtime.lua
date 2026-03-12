@@ -53,21 +53,23 @@ local function create_state_proxy(initial, path)
 	local proxy = {}
 
 	local mt = {
-		__index = function(_, key)
-			if key == "__raw" then
-				return raw
-			elseif key == "__path" then
-				return get_path_string()
-			elseif key == "__is_state" then
-				return true
-			end
+__index = function(_, key)
+		if key == "__raw" then
+			return raw
+		elseif key == "__path" then
+			return get_path_string()
+		elseif key == "__is_state" then
+			return true
+		end
 
-			-- Register dependency when accessing state
-			local path_str = get_path_string()
-			if path_str ~= "" and __xfw_register_state and RuntimeState.current_node_id then
-				local full_path = path_str .. "." .. tostring(key)
-				__xfw_register_state(RuntimeState.current_node_id, full_path)
-			end
+		-- Register dependency when accessing state
+		local path_str = get_path_string()
+		print("[STATE_ACCESS] path_str=" .. tostring(path_str) .. " current_node_id=" .. tostring(RuntimeState.current_node_id) .. " key=" .. tostring(key))
+		if path_str ~= "" and __xfw_register_state and RuntimeState.current_node_id then
+			local full_path = path_str .. "." .. tostring(key)
+			print("[STATE_REGISTER] node=" .. tostring(RuntimeState.current_node_id) .. " path=" .. full_path)
+			__xfw_register_state(RuntimeState.current_node_id, full_path)
+		end
 
 			local value = raw[key]
 			if type(value) == "table" and not getmetatable(value) then
@@ -102,25 +104,31 @@ local function wrap_node(raw, parent_proxy)
 	local children = {}
 	local node_id = raw.id
 
-	-- Register node with Rust
-	if node_id and __xfw_register_state then
-		-- Register all dynamic values in this node as dependencies
-		local function register_dependencies(obj, prefix)
-			prefix = prefix or ""
-			for key, value in pairs(obj) do
-				if key == "parent" or key == "children" or key == "__raw" or key == "__readonly_proxy" then
-					-- skip
-				elseif type(value) == "function" then
-					local path = prefix .. key
-					__xfw_register_state(node_id, path)
-				elseif type(value) == "table" and not getmetatable(value) then
-					local new_prefix = prefix .. key .. "."
-					register_dependencies(value, new_prefix)
-				end
-			end
-		end
-		register_dependencies(raw)
-	end
+-- Register node with Rust
+if node_id and __xfw_register_state then
+-- Register all dynamic values in this node as dependencies
+local function register_dependencies(obj, prefix)
+prefix = prefix or ""
+for key, value in pairs(obj) do
+if key == "parent" or key == "children" or key == "__raw" or key == "__readonly_proxy" then
+-- skip
+elseif type(value) == "function" then
+local path = prefix .. key
+-- Call the function to trigger state proxy access and register dependency
+local success, result = pcall(value)
+if success then
+-- Successfully called, result may be the resolved value
+else
+print("[LUA] Failed to call function " .. path .. ": " .. tostring(result))
+end
+elseif type(value) == "table" and not getmetatable(value) then
+local new_prefix = prefix .. key .. "."
+register_dependencies(value, new_prefix)
+end
+end
+end
+register_dependencies(raw)
+end
 
 	-- Clear current node ID after processing
 	RuntimeState.current_node_id = nil
