@@ -144,6 +144,11 @@ impl Runtime {
             .as_ref()
             .ok_or_else(|| anyhow!("Render tree is not initialized"))?;
         let commands = self.renderer.render(render_tree, dirty_rect)?;
+        if let Some(rect) = dirty_rect {
+            tracing::debug!(?rect, "rendering with dirty rect");
+        } else {
+            tracing::debug!("rendering full frame");
+        }
         if std::env::var_os("XFW_RENDER_DEBUG").is_some() {
             tracing::info!(node_count = render_tree.node_count(), "render tree built");
             Self::log_render_tree(render_tree.root(), 0);
@@ -153,8 +158,9 @@ impl Runtime {
             }
             Self::dump_debug(render_tree.root(), &commands)?;
         }
+        let bg_color = (0.12156863, 0.12156863, 0.18039216, 1.0);
         self.pixmap
-            .execute_with_dirty_rect(&commands, dirty_rect, (0.0, 0.0, 0.0, 0.0))?;
+            .execute_with_dirty_rect(&commands, dirty_rect, bg_color)?;
         if std::env::var_os("XFW_RUNTIME_DUMP").is_some() {
             let dump_name =
                 std::env::var("XFW_RUNTIME_DUMP_NAME").unwrap_or_else(|_| "frame.png".to_string());
@@ -248,11 +254,14 @@ impl Runtime {
 
         let dirty_rect = self.render_tree.as_ref().and_then(|tree| {
             let affected_ids = tree.get_affected_ids(path);
+            tracing::debug!(path = %path, affected_count = affected_ids.len(), "affected node IDs");
             if affected_ids.is_empty() {
                 tracing::debug!(path = %path, "no affected nodes found, falling back to full render");
                 None
             } else {
-                tree.compute_dirty_bbox(&affected_ids)
+                let bbox = tree.compute_dirty_bbox(&affected_ids);
+                tracing::debug!(path = %path, ?bbox, "computed dirty bbox");
+                bbox
             }
         });
 
