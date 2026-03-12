@@ -372,3 +372,67 @@ fn test_runtime_dirty_rect_multiple_changes() {
         std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
     }
 }
+
+#[test]
+fn test_runtime_manual_dirty_rect() {
+    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _ = fmt()
+        .with_test_writer()
+        .with_max_level(tracing::Level::DEBUG)
+        .try_init();
+    let root = workspace_root();
+    let old_dir = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&root).unwrap();
+
+    unsafe {
+        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "manual_dirty_full.png");
+    }
+
+    let temp_dir = TempDir::new().unwrap();
+    let config_path = write_config_alt(&temp_dir);
+
+    let config = RuntimeConfig {
+        entrypoint: config_path.clone(),
+    };
+    let mut runtime = Runtime::new(config).unwrap();
+
+    let (_width, _height, data) = runtime.render_once().unwrap();
+    assert!(data.iter().any(|b| *b != 0));
+
+    let dump_path_full = root
+        .join("target")
+        .join("xfw-runtime-dumps")
+        .join("manual_dirty_full.png");
+    assert!(dump_path_full.exists());
+
+    unsafe {
+        std::env::remove_var("XFW_RUNTIME_DUMP");
+        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "manual_dirty_partial.png");
+        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+    }
+
+    let dirty_rect = xfw_layout::Rect {
+        x: 50.0,
+        y: 50.0,
+        width: 100.0,
+        height: 100.0,
+    };
+    runtime.render_with_dirty_rect(dirty_rect).unwrap();
+
+    let dump_path_partial = root
+        .join("target")
+        .join("xfw-runtime-dumps")
+        .join("manual_dirty_partial.png");
+    assert!(dump_path_partial.exists());
+
+    let full_size = std::fs::metadata(&dump_path_full).unwrap().len();
+    let partial_size = std::fs::metadata(&dump_path_partial).unwrap().len();
+    assert_ne!(full_size, partial_size, "PNG sizes should be different");
+
+    std::env::set_current_dir(old_dir).unwrap();
+    unsafe {
+        std::env::remove_var("XFW_RUNTIME_DUMP");
+        std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
+    }
+}

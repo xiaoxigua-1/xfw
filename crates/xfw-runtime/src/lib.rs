@@ -271,12 +271,24 @@ impl Runtime {
         Ok(())
     }
 
+    /// Manually triggers a render with a specific dirty rect for testing.
+    ///
+    /// This bypasses automatic dependency tracking and allows testing
+    /// the dirty rect pipeline directly.
+    pub fn render_with_dirty_rect(&mut self, dirty_rect: xfw_layout::Rect) -> Result<()> {
+        tracing::debug!(?dirty_rect, "manual dirty rect render");
+        self.rebuild_render_tree()?;
+        self.render_current_tree(Some(dirty_rect))?;
+        Ok(())
+    }
+
     /// Loads, lays out, and renders the current config once.
     ///
     /// # Examples
     /// ```rust,no_run
     /// use xfw_cli::RuntimeConfig;
     /// use xfw_runtime::Runtime;
+    ///
     /// let config = RuntimeConfig { entrypoint: "lua/widgets/status_bar.lua".into() };
     /// let mut runtime = Runtime::new(config).unwrap();
     /// let (_w, _h, _data) = runtime.render_once().unwrap();
