@@ -30,6 +30,13 @@ fn write_config_with_state(temp_dir: &TempDir) -> PathBuf {
     path
 }
 
+fn write_config_dirty_complex(temp_dir: &TempDir) -> PathBuf {
+    let path = temp_dir.path().join("config_dirty_complex.lua");
+    let script = include_str!("fixtures/render_dirty_complex.lua");
+    std::fs::write(&path, script).unwrap();
+    path
+}
+
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
@@ -171,6 +178,170 @@ fn test_runtime_dirty_rect_pipeline() {
         .join("xfw-runtime-dumps")
         .join("dirty_rect_partial.png");
     assert!(dump_path_partial.exists());
+
+    std::env::set_current_dir(old_dir).unwrap();
+    unsafe {
+        std::env::remove_var("XFW_RUNTIME_DUMP");
+        std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
+    }
+}
+
+#[test]
+fn test_runtime_dirty_rect_nested() {
+    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _ = fmt()
+        .with_test_writer()
+        .with_max_level(tracing::Level::DEBUG)
+        .try_init();
+    let root = workspace_root();
+    let old_dir = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&root).unwrap();
+
+    unsafe {
+        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_nested_full.png");
+    }
+
+    let temp_dir = TempDir::new().unwrap();
+    let config_path = write_config_dirty_complex(&temp_dir);
+
+    let config = RuntimeConfig {
+        entrypoint: config_path,
+    };
+    let mut runtime = Runtime::new(config).unwrap();
+
+    let (width, height, data) = runtime.render_once().unwrap();
+    assert!(data.iter().any(|b| *b != 0));
+
+    let dump_path_full = root
+        .join("target")
+        .join("xfw-runtime-dumps")
+        .join("dirty_nested_full.png");
+    assert!(dump_path_full.exists());
+
+    unsafe {
+        std::env::remove_var("XFW_RUNTIME_DUMP");
+        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_nested_partial.png");
+        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+    }
+
+    runtime.on_state_change("items[1].color").unwrap();
+
+    let dump_path_partial = root
+        .join("target")
+        .join("xfw-runtime-dumps")
+        .join("dirty_nested_partial.png");
+    assert!(dump_path_partial.exists());
+
+    std::env::set_current_dir(old_dir).unwrap();
+    unsafe {
+        std::env::remove_var("XFW_RUNTIME_DUMP");
+        std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
+    }
+}
+
+#[test]
+fn test_runtime_dirty_rect_visibility() {
+    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _ = fmt()
+        .with_test_writer()
+        .with_max_level(tracing::Level::DEBUG)
+        .try_init();
+    let root = workspace_root();
+    let old_dir = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&root).unwrap();
+
+    unsafe {
+        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_visibility_full.png");
+    }
+
+    let temp_dir = TempDir::new().unwrap();
+    let config_path = write_config_dirty_complex(&temp_dir);
+
+    let config = RuntimeConfig {
+        entrypoint: config_path,
+    };
+    let mut runtime = Runtime::new(config).unwrap();
+
+    let (width, height, data) = runtime.render_once().unwrap();
+    assert!(data.iter().any(|b| *b != 0));
+
+    let dump_path_full = root
+        .join("target")
+        .join("xfw-runtime-dumps")
+        .join("dirty_visibility_full.png");
+    assert!(dump_path_full.exists());
+
+    unsafe {
+        std::env::remove_var("XFW_RUNTIME_DUMP");
+        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_visibility_hidden.png");
+        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+    }
+
+    runtime.on_state_change("items[2].visible").unwrap();
+
+    let dump_path_hidden = root
+        .join("target")
+        .join("xfw-runtime-dumps")
+        .join("dirty_visibility_hidden.png");
+    assert!(dump_path_hidden.exists());
+
+    std::env::set_current_dir(old_dir).unwrap();
+    unsafe {
+        std::env::remove_var("XFW_RUNTIME_DUMP");
+        std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
+    }
+}
+
+#[test]
+fn test_runtime_dirty_rect_multiple_changes() {
+    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _ = fmt()
+        .with_test_writer()
+        .with_max_level(tracing::Level::DEBUG)
+        .try_init();
+    let root = workspace_root();
+    let old_dir = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&root).unwrap();
+
+    unsafe {
+        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_multi_full.png");
+    }
+
+    let temp_dir = TempDir::new().unwrap();
+    let config_path = write_config_dirty_complex(&temp_dir);
+
+    let config = RuntimeConfig {
+        entrypoint: config_path,
+    };
+    let mut runtime = Runtime::new(config).unwrap();
+
+    let (width, height, data) = runtime.render_once().unwrap();
+    assert!(data.iter().any(|b| *b != 0));
+
+    unsafe {
+        std::env::remove_var("XFW_RUNTIME_DUMP");
+        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_multi_change1.png");
+        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+    }
+
+    runtime.on_state_change("items[1].color").unwrap();
+
+    unsafe {
+        std::env::remove_var("XFW_RUNTIME_DUMP");
+        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_multi_change2.png");
+        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+    }
+
+    runtime.on_state_change("title").unwrap();
+
+    let dump_path = root
+        .join("target")
+        .join("xfw-runtime-dumps")
+        .join("dirty_multi_change2.png");
+    assert!(dump_path.exists());
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
