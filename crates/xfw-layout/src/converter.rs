@@ -80,7 +80,10 @@ impl StyleAttr {
     }
 }
 
-pub struct RenderObjectConverter;
+pub struct RenderObjectConverter {
+    next_id: Option<usize>,
+    id_prefix: Option<String>,
+}
 
 impl RenderObjectConverter {
     /// Creates a new converter.
@@ -97,7 +100,10 @@ impl RenderObjectConverter {
     /// # Panics
     /// None.
     pub fn new() -> Self {
-        Self
+        Self {
+            next_id: Some(0),
+            id_prefix: Some("n".to_string()),
+        }
     }
 
     /// Converts a UI node into a render tree node.
@@ -110,7 +116,7 @@ impl RenderObjectConverter {
     /// let mut ui_node = UiNode::new(NodeKind::View);
     /// ui_node.props.style = StyleSource::default();
     /// ui_node.children = vec![];
-    /// let converter = RenderObjectConverter::new();
+    /// let mut converter = RenderObjectConverter::new();
     /// let _render_node = converter.convert(&ui_node);
     /// ```
     ///
@@ -119,10 +125,16 @@ impl RenderObjectConverter {
     ///
     /// # Panics
     /// None.
-    pub fn convert(&self, ui_node: &UiNode) -> RenderObject {
+    pub fn convert(&mut self, ui_node: &UiNode) -> RenderObject {
         let layout_style = self.convert_layout_style(&ui_node.props.style);
         let render_style = self.convert_render_style(&ui_node.props.style);
-        let id = ui_node.id.clone();
+        let id = ui_node.id.clone().or_else(|| {
+            self.next_id.take().map(|id| {
+                let prefix = self.id_prefix.clone().unwrap_or_default();
+                self.next_id = Some(id + 1);
+                format!("{}{}", prefix, id)
+            })
+        });
         let children: Vec<RenderObject> = ui_node
             .children
             .iter()

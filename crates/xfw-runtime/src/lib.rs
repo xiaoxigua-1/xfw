@@ -130,7 +130,7 @@ impl Runtime {
 
     fn rebuild_render_tree(&mut self) -> Result<()> {
         let ui_node = self.lua.build_view_tree()?;
-        let converter = RenderObjectConverter::new();
+        let mut converter = RenderObjectConverter::new();
         let root = converter.convert(&ui_node);
         let mut tree = RenderObjectTree::new(root);
         self.layout.compute_layout(&mut tree)?;
@@ -246,18 +246,17 @@ impl Runtime {
     pub fn on_state_change(&mut self, path: &str) -> Result<()> {
         tracing::debug!(path = %path, "state changed, rebuilding tree");
 
-        let affected_ids = self
-            .render_tree
-            .as_ref()
-            .map(|tree| tree.get_affected_ids(path))
-            .unwrap_or_default();
+        let dirty_rect = self.render_tree.as_ref().and_then(|tree| {
+            let affected_ids = tree.get_affected_ids(path);
+            if affected_ids.is_empty() {
+                tracing::debug!(path = %path, "no affected nodes found, falling back to full render");
+                None
+            } else {
+                tree.compute_dirty_bbox(&affected_ids)
+            }
+        });
 
         self.rebuild_render_tree()?;
-
-        let dirty_rect = self
-            .render_tree
-            .as_ref()
-            .and_then(|tree| tree.compute_dirty_bbox(&affected_ids));
 
         self.render_current_tree(dirty_rect)?;
         Ok(())
