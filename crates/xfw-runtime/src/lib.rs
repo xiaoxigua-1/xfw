@@ -252,21 +252,21 @@ impl Runtime {
     pub fn on_state_change(&mut self, path: &str) -> Result<()> {
         tracing::debug!(path = %path, "state changed, rebuilding tree");
 
-        let dirty_rect = self.render_tree.as_ref().and_then(|tree| {
-            let affected_ids = tree.get_affected_ids(path);
-            tracing::debug!(path = %path, affected_count = affected_ids.len(), "affected node IDs");
-            if affected_ids.is_empty() {
-                tracing::debug!(path = %path, "no affected nodes found, falling back to full render");
+        let dirty_rect = {
+            let state_reg = self.state_registry.read();
+            let affected_nodes = state_reg.get_affected_nodes(path);
+            tracing::debug!(path = %path, affected_count = affected_nodes.len(), "affected nodes from state registry");
+
+            if affected_nodes.is_empty() {
+                tracing::debug!(path = %path, "no affected nodes, falling back to full render");
                 None
             } else {
-                let bbox = tree.compute_dirty_bbox(&affected_ids);
-                tracing::debug!(path = %path, ?bbox, "computed dirty bbox");
-                bbox
+                let affected_ids: Vec<String> = affected_nodes.iter().map(|n| format!("n{}", n.0)).collect();
+                self.render_tree.as_ref().and_then(|tree| tree.compute_dirty_bbox(&affected_ids))
             }
-        });
+        };
 
         self.rebuild_render_tree()?;
-
         self.render_current_tree(dirty_rect)?;
         Ok(())
     }
