@@ -520,8 +520,8 @@ impl PixmapRenderer {
         let pixmap_width = self.pixmap.width() as i32;
         let pixmap_height = self.pixmap.height() as i32;
         let row_stride = self.pixmap.width() as usize;
-        let origin_x = args.x as i32;
-        let origin_y = (args.y + args.font_size).round() as i32;
+        let origin_x = args.x.round() as i32;
+        let origin_y = args.y.round() as i32;
         let mask = self.current_mask();
         let (mask_data, mask_width) = match mask.as_ref() {
             Some(mask) => (Some(mask.data()), mask.width() as usize),

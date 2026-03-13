@@ -1,5 +1,7 @@
-use std::fs::create_dir_all;
-use std::path::Path;
+use std::env;
+use std::fs::{self, create_dir_all, File};
+use std::io;
+use std::path::{Path, PathBuf};
 use taffy::style::Style as TaffyStyle;
 use xfw_layout::{Color, RenderObject, RenderObjectTree, RenderStyle};
 use xfw_render::{DrawCommand, PixmapRenderer, Renderer};
@@ -66,7 +68,7 @@ fn test_draw_commands_with_background() {
         _ => panic!("Expected FillRect"),
     }
 
-    if std::env::var_os("XFW_RENDER_DUMP").is_some() {
+    if env::var_os("XFW_RENDER_DUMP").is_some() {
         let mut pixmap = PixmapRenderer::new(100, 50).unwrap();
         pixmap.clear((0.0, 0.0, 0.0, 0.0));
         pixmap.execute(&commands).unwrap();
@@ -128,8 +130,8 @@ fn test_draw_commands_text_node() {
         _ => panic!("Expected DrawText"),
     }
 
-    if std::env::var_os("XFW_RENDER_DUMP").is_some() {
-        let mut pixmap = PixmapRenderer::new(120, 40).unwrap();
+    if env::var_os("XFW_RENDER_DUMP").is_some() {
+        let mut pixmap = PixmapRenderer::new(200, 100).unwrap();
         pixmap.clear((0.0, 0.0, 0.0, 0.0));
         pixmap.execute(&commands).unwrap();
         maybe_dump_png("text_draw", &mut pixmap);
@@ -171,7 +173,7 @@ fn test_draw_commands_image_node() {
         _ => panic!("Expected DrawImage"),
     }
 
-    if std::env::var_os("XFW_RENDER_DUMP").is_some() {
+    if env::var_os("XFW_RENDER_DUMP").is_some() {
         let mut pixmap = PixmapRenderer::new(100, 100).unwrap();
         pixmap.clear((0.0, 0.0, 0.0, 0.0));
         pixmap.execute(&commands).unwrap();
@@ -242,7 +244,7 @@ fn test_draw_commands_nested_container() {
 
     assert_eq!(commands.len(), 2);
 
-    if std::env::var_os("XFW_RENDER_DUMP").is_some() {
+    if env::var_os("XFW_RENDER_DUMP").is_some() {
         let mut pixmap = PixmapRenderer::new(200, 100).unwrap();
         pixmap.clear((0.0, 0.0, 0.0, 0.0));
         pixmap.execute(&commands).unwrap();
@@ -326,7 +328,7 @@ fn maybe_dump_png(name: &str, renderer: &mut PixmapRenderer) {
     }
 }
 
-fn create_test_png(name: &str, width: u32, height: u32) -> std::path::PathBuf {
+fn create_test_png(name: &str, width: u32, height: u32) -> PathBuf {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..")
@@ -1602,36 +1604,47 @@ fn test_font_load_system_fonts() {
     assert!(pixmap.has_fonts());
 }
 
-fn get_test_font_path() -> std::path::PathBuf {
-    let font_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("test_fonts")
-        .join("JetBrainsMonoNerdFont-Regular.ttf");
+fn get_test_font_path() -> PathBuf {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let workspace_root = manifest_dir.parent().and_then(|p| p.parent()).unwrap();
+    let font_dir = workspace_root.join("target").join("xfw-test-fonts");
+    let font_path = font_dir.join("JetBrainsMonoNerdFont-Regular.ttf");
 
     if !font_path.exists() {
-        let url = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/JetBrainsMono.zip";
-        let zip_path = std::env::temp_dir().join("nerdfont.zip");
+        let url =
+            "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/JetBrainsMono.zip";
+        let zip_path = font_dir.join("nerdfont.zip");
+        create_dir_all(&font_dir).expect("Failed to create font directory");
 
         println!("Downloading Nerd Font...");
-        let response = ureq::get(url).call().expect("Failed to download font");
-        let mut file = std::fs::File::create(&zip_path).expect("Failed to create temp file");
-        std::io::copy(&mut response.into_reader(), &mut file).expect("Failed to save font");
 
-        let file = std::fs::File::open(&zip_path).expect("Failed to open zip");
+        let mut response = ureq::get(url).call().expect("Failed to download Nerd Font");
+        let mut file = File::create(&zip_path).expect("Failed to create temp file");
+        io::copy(&mut response.into_reader(), &mut file).expect("Failed to save zip");
+
+        println!("Extracting Nerd Font...");
+
+        let file = File::open(&zip_path).expect("Failed to open zip");
         let mut archive = zip::ZipArchive::new(file).expect("Failed to read zip");
-        let mut font_file = archive.by_name("JetBrainsMonoNerdFont-Regular.ttf")
-            .expect("Font not found in zip");
-        
-        let mut outfile = std::fs::File::create(&font_path).expect("Failed to create font file");
-        std::io::copy(&mut font_file, &mut outfile).expect("Failed to extract font");
+        archive.extract(&font_dir).expect("Failed to extract zip");
 
-        std::fs::remove_file(zip_path).ok();
+        let mut outfile = File::create(&font_path).expect("Failed to create font file");
+        io::copy(
+            &mut archive
+                .by_name("JetBrainsMonoNerdFont-Regular.ttf")
+                .unwrap(),
+            &mut outfile,
+        )
+        .expect("Failed to copy font");
+
+        fs::remove_file(zip_path).ok();
         println!("Font downloaded to: {:?}", font_path);
     }
     font_path
 }
 
 fn load_test_font() -> Vec<u8> {
-    std::fs::read(get_test_font_path()).expect("Failed to read test font")
+    fs::read(get_test_font_path()).expect("Failed to read test font")
 }
 
 #[test]
@@ -1642,33 +1655,45 @@ fn test_font_load_from_memory() {
     let font_data = load_test_font();
     pixmap.load_font_data(font_data).unwrap();
 
+    let commands = vec![DrawCommand::DrawText {
+        text: "Memory".to_string(),
+        x: 10.0,
+        y: 30.0,
+        width: 100.0,
+        color: (1.0, 1.0, 1.0, 1.0),
+        font_size: 20.0,
+        font_family: Some("JetBrainsMono Nerd Font".to_string()),
+        text_align: xfw_layout::TextAlign::Left,
+    }];
+
+    pixmap.execute(&commands).unwrap();
+    maybe_dump_png("test_font_load_from_memory", &mut pixmap);
+
     assert!(pixmap.has_fonts());
 }
 
 #[test]
 fn test_font_load_nerd_font_icon() {
-    let mut pixmap = PixmapRenderer::new(120, 40).unwrap();
+    let mut pixmap = PixmapRenderer::new(200, 60).unwrap();
     pixmap.clear((0.0, 0.0, 0.0, 0.0));
 
     let font_data = load_test_font();
     pixmap.load_font_data(font_data).unwrap();
 
     let commands = vec![DrawCommand::DrawText {
-        text: "\u{f6ff}".to_string(),
+        text: "\u{f00c} \u{f017} Nerd".to_string(),
         x: 10.0,
-        y: 10.0,
-        width: 30.0,
+        y: 35.0,
+        width: 200.0,
         color: (1.0, 1.0, 1.0, 1.0),
-        font_size: 20.0,
-        font_family: Some("JetBrains Mono".to_string()),
+        font_size: 24.0,
+        font_family: Some("JetBrainsMono Nerd Font".to_string()),
         text_align: xfw_layout::TextAlign::Left,
     }];
 
     pixmap.execute(&commands).unwrap();
 
-    let pixels: Vec<_> = pixmap.pixmap_mut().data().chunks(4).collect();
-    let has_rendered_pixels = pixels.iter().any(|p| p[3] > 0);
-    assert!(has_rendered_pixels, "Icon should be rendered");
+    maybe_dump_png("test_font_load_nerd_font_icon", &mut pixmap);
 }
 
 #[test]
@@ -1689,7 +1714,13 @@ fn test_font_auto_loads_system_on_draw_text() {
 
     pixmap.execute(&commands).unwrap();
 
+    maybe_dump_png("test_font_auto_loads_system_on_draw_text", &mut pixmap);
+
     assert!(pixmap.has_fonts());
+
+    let pixels: Vec<_> = pixmap.pixmap_mut().data().chunks(4).collect();
+    let has_rendered_pixels = pixels.iter().any(|p| p[3] > 0);
+    assert!(has_rendered_pixels, "Text should be rendered");
 }
 
 #[test]
