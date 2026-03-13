@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use cosmic_text::{FontSystem, SwashCache};
+use std::path::Path;
 use tiny_skia::{
     FilterQuality, Mask, MaskType, PathBuilder, Pixmap, PixmapPaint, Rect, Stroke, Transform,
 };
@@ -89,6 +90,7 @@ pub struct PixmapRenderer {
     font_system: FontSystem,
     swash_cache: SwashCache,
     clip_stack: Vec<Mask>,
+    system_fonts_loaded: bool,
 }
 
 struct TextDrawArgs<'a> {
@@ -120,14 +122,37 @@ impl PixmapRenderer {
     pub fn new(width: u32, height: u32) -> Result<Self> {
         let pixmap =
             Pixmap::new(width, height).ok_or_else(|| anyhow!("Failed to create pixmap"))?;
-        let font_system = FontSystem::new();
+        let font_system = FontSystem::new_with_fonts(std::iter::empty());
         let swash_cache = SwashCache::new();
         Ok(Self {
             pixmap,
             font_system,
             swash_cache,
             clip_stack: Vec::new(),
+            system_fonts_loaded: false,
         })
+    }
+
+    pub fn load_font_file(&mut self, path: &Path) -> Result<()> {
+        self.font_system
+            .db_mut()
+            .load_font_file(path)
+            .map_err(|e| anyhow!("Failed to load font file: {:?}: {:?}", path, e))?;
+        Ok(())
+    }
+
+    pub fn load_font_data(&mut self, data: Vec<u8>) -> Result<()> {
+        self.font_system.db_mut().load_font_data(data);
+        Ok(())
+    }
+
+    pub fn load_system_fonts(&mut self) -> Result<()> {
+        if self.system_fonts_loaded {
+            return Ok(());
+        }
+        self.font_system.db_mut().load_system_fonts();
+        self.system_fonts_loaded = true;
+        Ok(())
     }
 
     /// Returns the pixmap width in pixels.

@@ -7,6 +7,7 @@ publish = false
 [dependencies]
 anyhow.workspace = true
 cosmic-text.workspace = true
+fontdb.workspace = true
 tiny-skia.workspace = true
 taffy.workspace = true
 xfw-layout = { path = "../xfw-layout" }

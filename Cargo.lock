@@ -1293,6 +1293,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cosmic-text",
+ "fontdb",
  "taffy",
  "tiny-skia",
  "xfw-layout",
