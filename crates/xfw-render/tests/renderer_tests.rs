@@ -1607,10 +1607,36 @@ fn test_font_load_from_memory() {
     let mut pixmap = PixmapRenderer::new(100, 50).unwrap();
     pixmap.clear((0.0, 0.0, 0.0, 0.0));
 
-    let font_data = include_bytes!("../test_fonts/DejaVuSans.ttf");
+    let font_data = include_bytes!("../test_fonts/JetBrainsMonoNerdFont-Regular.ttf");
     pixmap.load_font_data(font_data.to_vec()).unwrap();
 
     assert!(pixmap.has_fonts());
+}
+
+#[test]
+fn test_font_load_nerd_font_icon() {
+    let mut pixmap = PixmapRenderer::new(120, 40).unwrap();
+    pixmap.clear((0.0, 0.0, 0.0, 0.0));
+
+    let font_data = include_bytes!("../test_fonts/JetBrainsMonoNerdFont-Regular.ttf");
+    pixmap.load_font_data(font_data.to_vec()).unwrap();
+
+    let commands = vec![DrawCommand::DrawText {
+        text: "\u{f6ff}".to_string(),
+        x: 10.0,
+        y: 10.0,
+        width: 30.0,
+        color: (1.0, 1.0, 1.0, 1.0),
+        font_size: 20.0,
+        font_family: Some("JetBrains Mono".to_string()),
+        text_align: xfw_layout::TextAlign::Left,
+    }];
+
+    pixmap.execute(&commands).unwrap();
+
+    let pixels: Vec<_> = pixmap.pixmap_mut().data().chunks(4).collect();
+    let has_rendered_pixels = pixels.iter().any(|p| p[3] > 0);
+    assert!(has_rendered_pixels, "Icon should be rendered");
 }
 
 #[test]
