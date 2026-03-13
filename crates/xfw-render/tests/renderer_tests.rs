@@ -1602,11 +1602,36 @@ fn test_font_load_system_fonts() {
     assert!(pixmap.has_fonts());
 }
 
-fn load_test_font() -> Vec<u8> {
+fn get_test_font_path() -> std::path::PathBuf {
     let font_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("test_fonts")
         .join("JetBrainsMonoNerdFont-Regular.ttf");
-    std::fs::read(font_path).expect("Failed to read test font")
+
+    if !font_path.exists() {
+        let url = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/JetBrainsMono.zip";
+        let zip_path = std::env::temp_dir().join("nerdfont.zip");
+
+        println!("Downloading Nerd Font...");
+        let response = ureq::get(url).call().expect("Failed to download font");
+        let mut file = std::fs::File::create(&zip_path).expect("Failed to create temp file");
+        std::io::copy(&mut response.into_reader(), &mut file).expect("Failed to save font");
+
+        let file = std::fs::File::open(&zip_path).expect("Failed to open zip");
+        let mut archive = zip::ZipArchive::new(file).expect("Failed to read zip");
+        let mut font_file = archive.by_name("JetBrainsMonoNerdFont-Regular.ttf")
+            .expect("Font not found in zip");
+        
+        let mut outfile = std::fs::File::create(&font_path).expect("Failed to create font file");
+        std::io::copy(&mut font_file, &mut outfile).expect("Failed to extract font");
+
+        std::fs::remove_file(zip_path).ok();
+        println!("Font downloaded to: {:?}", font_path);
+    }
+    font_path
+}
+
+fn load_test_font() -> Vec<u8> {
+    std::fs::read(get_test_font_path()).expect("Failed to read test font")
 }
 
 #[test]

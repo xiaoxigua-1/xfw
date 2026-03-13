@@ -11,3 +11,7 @@ fontdb.workspace = true
 tiny-skia.workspace = true
 taffy.workspace = true
 xfw-layout = { path = "../xfw-layout" }
+
+[dev-dependencies]
+ureq = "2"
+zip = "2"
