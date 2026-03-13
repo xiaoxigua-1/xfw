@@ -65,6 +65,29 @@ fn write_config_dirty_complex_multi(temp_dir: &TempDir) -> PathBuf {
     path
 }
 
+fn write_config_with_fixture(temp_dir: &TempDir, filename: &str, fixture: &str) -> PathBuf {
+    let path = temp_dir.path().join(filename);
+    let script = match fixture {
+        "render_complex" => include_str!("fixtures/render_complex.lua"),
+        "render_complex_alt" => include_str!("fixtures/render_complex_alt.lua"),
+        "render_with_state" => include_str!("fixtures/render_with_state.lua"),
+        "render_with-state-changed" => include_str!("fixtures/render_with-state-changed.lua"),
+        "render_dirty_complex" => include_str!("fixtures/render_dirty_complex.lua"),
+        "render_dirty_complex_changed" => include_str!("fixtures/render_dirty_complex_changed.lua"),
+        "render_dirty_complex_visibility" => {
+            include_str!("fixtures/render_dirty_complex_visibility.lua")
+        }
+        "render_dirty_complex_multi" => include_str!("fixtures/render_dirty_complex_multi.lua"),
+        _ => panic!("Unknown fixture: {}", fixture),
+    };
+    std::fs::write(&path, script).unwrap();
+    path
+}
+
+fn dump_path(root: &PathBuf, name: &str) -> PathBuf {
+    root.join("target").join("xfw-runtime-dumps").join(name)
+}
+
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
@@ -291,7 +314,10 @@ fn test_runtime_dirty_rect_nested() {
     assert!(dump_path_partial.exists());
     let partial_bytes = std::fs::read(&dump_path_partial).unwrap();
 
-    assert_ne!(full_bytes, partial_bytes, "Dirty rect render should produce different output");
+    assert_ne!(
+        full_bytes, partial_bytes,
+        "Dirty rect render should produce different output"
+    );
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
@@ -361,7 +387,10 @@ fn test_runtime_dirty_rect_visibility() {
     assert!(dump_path_hidden.exists());
     let hidden_bytes = std::fs::read(&dump_path_hidden).unwrap();
 
-    assert_ne!(full_bytes, hidden_bytes, "Visibility change should produce different output");
+    assert_ne!(
+        full_bytes, hidden_bytes,
+        "Visibility change should produce different output"
+    );
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
@@ -437,7 +466,10 @@ fn test_runtime_dirty_rect_multiple_changes() {
     assert!(dump_path.exists());
     let change_bytes = std::fs::read(&dump_path).unwrap();
 
-    assert_ne!(full_bytes, change_bytes, "Multiple changes should produce different output");
+    assert_ne!(
+        full_bytes, change_bytes,
+        "Multiple changes should produce different output"
+    );
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
