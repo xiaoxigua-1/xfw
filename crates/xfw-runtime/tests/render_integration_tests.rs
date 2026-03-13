@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 use tempfile::TempDir;
 use tracing_subscriber::fmt;
@@ -6,6 +6,22 @@ use tracing_subscriber::fmt;
 use std::sync::Mutex;
 use xfw_cli::RuntimeConfig;
 use xfw_runtime::Runtime;
+
+fn set_env_vars(pairs: &[(&str, &str)]) {
+    unsafe {
+        for (key, value) in pairs {
+            env::set_var(key, value);
+        }
+    }
+}
+
+fn remove_env_vars(keys: &[&str]) {
+    unsafe {
+        for key in keys {
+            env::remove_var(key);
+        }
+    }
+}
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
