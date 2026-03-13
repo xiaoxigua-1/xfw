@@ -146,6 +146,10 @@ impl PixmapRenderer {
         Ok(())
     }
 
+    pub fn has_fonts(&self) -> bool {
+        self.font_system.db().faces().next().is_some()
+    }
+
     pub fn load_system_fonts(&mut self) -> Result<()> {
         if self.system_fonts_loaded {
             return Ok(());
@@ -477,6 +481,10 @@ impl PixmapRenderer {
     }
 
     fn draw_text(&mut self, args: &TextDrawArgs<'_>) -> Result<()> {
+        if self.font_system.db().faces().next().is_none() {
+            self.load_system_fonts()?;
+        }
+
         let line_height = args.font_size * 1.2;
         let mut buffer = cosmic_text::Buffer::new(
             &mut self.font_system,

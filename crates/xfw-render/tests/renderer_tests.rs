@@ -1578,6 +1578,63 @@ fn test_dirty_rect_multiple_areas() {
 }
 
 #[test]
+fn test_font_explicit_system_load() {
+    let mut pixmap = PixmapRenderer::new(100, 50).unwrap();
+    pixmap.clear((0.0, 0.0, 0.0, 0.0));
+
+    let has_fonts_before = pixmap.has_fonts();
+
+    pixmap.load_system_fonts().unwrap();
+
+    let has_fonts_after = pixmap.has_fonts();
+
+    assert!(!has_fonts_before || has_fonts_after);
+    assert!(has_fonts_after);
+}
+
+#[test]
+fn test_font_load_system_fonts() {
+    let mut pixmap = PixmapRenderer::new(100, 50).unwrap();
+    pixmap.clear((0.0, 0.0, 0.0, 0.0));
+
+    pixmap.load_system_fonts().unwrap();
+
+    assert!(pixmap.has_fonts());
+}
+
+#[test]
+fn test_font_load_from_memory() {
+    let mut pixmap = PixmapRenderer::new(100, 50).unwrap();
+    pixmap.clear((0.0, 0.0, 0.0, 0.0));
+
+    let font_data = include_bytes!("../test_fonts/DejaVuSans.ttf");
+    pixmap.load_font_data(font_data.to_vec()).unwrap();
+
+    assert!(pixmap.has_fonts());
+}
+
+#[test]
+fn test_font_auto_loads_system_on_draw_text() {
+    let mut pixmap = PixmapRenderer::new(120, 40).unwrap();
+    pixmap.clear((0.0, 0.0, 0.0, 0.0));
+
+    let commands = vec![DrawCommand::DrawText {
+        text: "Auto load fonts".to_string(),
+        x: 10.0,
+        y: 10.0,
+        width: 100.0,
+        color: (1.0, 1.0, 1.0, 1.0),
+        font_size: 14.0,
+        font_family: None,
+        text_align: xfw_layout::TextAlign::Left,
+    }];
+
+    pixmap.execute(&commands).unwrap();
+
+    assert!(pixmap.has_fonts());
+}
+
+#[test]
 fn test_dirty_rect_opacity_change() {
     let root = RenderObject::container(
         Some("root".to_string()),
