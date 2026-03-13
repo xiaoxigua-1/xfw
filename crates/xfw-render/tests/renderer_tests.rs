@@ -1602,13 +1602,20 @@ fn test_font_load_system_fonts() {
     assert!(pixmap.has_fonts());
 }
 
+fn load_test_font() -> Vec<u8> {
+    let font_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("test_fonts")
+        .join("JetBrainsMonoNerdFont-Regular.ttf");
+    std::fs::read(font_path).expect("Failed to read test font")
+}
+
 #[test]
 fn test_font_load_from_memory() {
     let mut pixmap = PixmapRenderer::new(100, 50).unwrap();
     pixmap.clear((0.0, 0.0, 0.0, 0.0));
 
-    let font_data = include_bytes!("../test_fonts/JetBrainsMonoNerdFont-Regular.ttf");
-    pixmap.load_font_data(font_data.to_vec()).unwrap();
+    let font_data = load_test_font();
+    pixmap.load_font_data(font_data).unwrap();
 
     assert!(pixmap.has_fonts());
 }
@@ -1618,8 +1625,8 @@ fn test_font_load_nerd_font_icon() {
     let mut pixmap = PixmapRenderer::new(120, 40).unwrap();
     pixmap.clear((0.0, 0.0, 0.0, 0.0));
 
-    let font_data = include_bytes!("../test_fonts/JetBrainsMonoNerdFont-Regular.ttf");
-    pixmap.load_font_data(font_data.to_vec()).unwrap();
+    let font_data = load_test_font();
+    pixmap.load_font_data(font_data).unwrap();
 
     let commands = vec![DrawCommand::DrawText {
         text: "\u{f6ff}".to_string(),
