@@ -122,9 +122,7 @@ fn test_runtime_render_once_produces_pixels() {
     std::env::set_current_dir(&root).unwrap();
 
     unsafe {
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "frame.png");
-        std::env::set_var("XFW_RENDER_DEBUG", "1");
+        set_env_vars(&[("XFW_RUNTIME_DUMP", "1"), ("XFW_RUNTIME_DUMP_NAME", "frame.png"), ("XFW_RENDER_DEBUG", "1")]);;
     }
 
     let temp_dir = TempDir::new().unwrap();
@@ -144,9 +142,7 @@ fn test_runtime_render_once_produces_pixels() {
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
-        std::env::remove_var("XFW_RENDER_DEBUG");
+        remove_env_vars(&["XFW_RUNTIME_DUMP", "XFW_RUNTIME_DUMP_NAME", "XFW_RENDER_DEBUG"]);;
     }
 
     assert_eq!(data.len(), width as usize * height as usize * 4);
@@ -166,9 +162,7 @@ fn test_runtime_render_once_produces_pixels_alt() {
     std::env::set_current_dir(&root).unwrap();
 
     unsafe {
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "frame_alt.png");
-        std::env::set_var("XFW_RENDER_DEBUG", "1");
+        set_env_vars(&[("XFW_RUNTIME_DUMP", "1"), ("XFW_RUNTIME_DUMP_NAME", "frame_alt.png"), ("XFW_RENDER_DEBUG", "1")]);;
     }
 
     let temp_dir = TempDir::new().unwrap();
@@ -188,9 +182,7 @@ fn test_runtime_render_once_produces_pixels_alt() {
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
-        std::env::remove_var("XFW_RENDER_DEBUG");
+        remove_env_vars(&["XFW_RUNTIME_DUMP", "XFW_RUNTIME_DUMP_NAME", "XFW_RENDER_DEBUG"]);;
     }
 
     assert_eq!(data.len(), width as usize * height as usize * 4);
@@ -210,8 +202,7 @@ fn test_runtime_dirty_rect_pipeline() {
     std::env::set_current_dir(&root).unwrap();
 
     unsafe {
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_rect_full.png");
+        set_env_vars(&[("XFW_RUNTIME_DUMP", "1"), ("XFW_RUNTIME_DUMP_NAME", "dirty_rect_full.png")]);;
     }
 
     let temp_dir = TempDir::new().unwrap();
@@ -238,9 +229,8 @@ fn test_runtime_dirty_rect_pipeline() {
     .unwrap();
 
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_rect_partial.png");
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+        remove_env_vars(&["XFW_RUNTIME_DUMP"]);
+        set_env_vars(&[("XFW_RUNTIME_DUMP_NAME", "dirty_rect_partial.png"), ("XFW_RUNTIME_DUMP", "1")]);;
     }
 
     let config2 = RuntimeConfig {
@@ -264,8 +254,7 @@ fn test_runtime_dirty_rect_pipeline() {
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
+        remove_env_vars(&["XFW_RUNTIME_DUMP", "XFW_RUNTIME_DUMP_NAME"]);;
     }
 }
 
@@ -281,8 +270,7 @@ fn test_runtime_dirty_rect_nested() {
     std::env::set_current_dir(&root).unwrap();
 
     unsafe {
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_nested_full.png");
+        set_env_vars(&[("XFW_RUNTIME_DUMP", "1"), ("XFW_RUNTIME_DUMP_NAME", "dirty_nested_full.png")]);;
     }
 
     let temp_dir = TempDir::new().unwrap();
@@ -310,9 +298,8 @@ fn test_runtime_dirty_rect_nested() {
     .unwrap();
 
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_nested_partial.png");
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+        remove_env_vars(&["XFW_RUNTIME_DUMP"]);
+        set_env_vars(&[("XFW_RUNTIME_DUMP_NAME", "dirty_nested_partial.png"), ("XFW_RUNTIME_DUMP", "1")]);;
     }
 
     let config2 = RuntimeConfig {
@@ -337,8 +324,7 @@ fn test_runtime_dirty_rect_nested() {
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
+        remove_env_vars(&["XFW_RUNTIME_DUMP", "XFW_RUNTIME_DUMP_NAME"]);;
     }
 }
 
@@ -354,8 +340,7 @@ fn test_runtime_dirty_rect_visibility() {
     std::env::set_current_dir(&root).unwrap();
 
     unsafe {
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_visibility_full.png");
+        set_env_vars(&[("XFW_RUNTIME_DUMP", "1"), ("XFW_RUNTIME_DUMP_NAME", "dirty_visibility_full.png")]);;
     }
 
     let temp_dir = TempDir::new().unwrap();
@@ -383,9 +368,8 @@ fn test_runtime_dirty_rect_visibility() {
     .unwrap();
 
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_visibility_hidden.png");
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+        remove_env_vars(&["XFW_RUNTIME_DUMP"]);
+        set_env_vars(&[("XFW_RUNTIME_DUMP_NAME", "dirty_visibility_hidden.png"), ("XFW_RUNTIME_DUMP", "1")]);;
     }
 
     let config2 = RuntimeConfig {
@@ -410,8 +394,7 @@ fn test_runtime_dirty_rect_visibility() {
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
+        remove_env_vars(&["XFW_RUNTIME_DUMP", "XFW_RUNTIME_DUMP_NAME"]);;
     }
 }
 
@@ -427,8 +410,7 @@ fn test_runtime_dirty_rect_multiple_changes() {
     std::env::set_current_dir(&root).unwrap();
 
     unsafe {
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_multi_full.png");
+        set_env_vars(&[("XFW_RUNTIME_DUMP", "1"), ("XFW_RUNTIME_DUMP_NAME", "dirty_multi_full.png")]);;
     }
 
     let temp_dir = TempDir::new().unwrap();
@@ -443,9 +425,8 @@ fn test_runtime_dirty_rect_multiple_changes() {
     assert!(data.iter().any(|b| *b != 0));
 
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_multi_change1.png");
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+        remove_env_vars(&["XFW_RUNTIME_DUMP"]);
+        set_env_vars(&[("XFW_RUNTIME_DUMP_NAME", "dirty_multi_change1.png"), ("XFW_RUNTIME_DUMP", "1")]);;
     }
 
     let dump_path_full = root
@@ -462,9 +443,8 @@ fn test_runtime_dirty_rect_multiple_changes() {
     .unwrap();
 
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "dirty_multi_change2.png");
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+        remove_env_vars(&["XFW_RUNTIME_DUMP"]);
+        set_env_vars(&[("XFW_RUNTIME_DUMP_NAME", "dirty_multi_change2.png"), ("XFW_RUNTIME_DUMP", "1")]);;
     }
 
     let config2 = RuntimeConfig {
@@ -489,8 +469,7 @@ fn test_runtime_dirty_rect_multiple_changes() {
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
+        remove_env_vars(&["XFW_RUNTIME_DUMP", "XFW_RUNTIME_DUMP_NAME"]);;
     }
 }
 
@@ -506,8 +485,7 @@ fn test_runtime_manual_dirty_rect() {
     std::env::set_current_dir(&root).unwrap();
 
     unsafe {
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "manual_dirty_full.png");
+        set_env_vars(&[("XFW_RUNTIME_DUMP", "1"), ("XFW_RUNTIME_DUMP_NAME", "manual_dirty_full.png")]);;
     }
 
     let temp_dir = TempDir::new().unwrap();
@@ -528,9 +506,8 @@ fn test_runtime_manual_dirty_rect() {
     assert!(dump_path_full.exists());
 
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::set_var("XFW_RUNTIME_DUMP_NAME", "manual_dirty_partial.png");
-        std::env::set_var("XFW_RUNTIME_DUMP", "1");
+        remove_env_vars(&["XFW_RUNTIME_DUMP"]);
+        set_env_vars(&[("XFW_RUNTIME_DUMP_NAME", "manual_dirty_partial.png"), ("XFW_RUNTIME_DUMP", "1")]);;
     }
 
     let dirty_rect = xfw_layout::Rect {
@@ -553,7 +530,6 @@ fn test_runtime_manual_dirty_rect() {
 
     std::env::set_current_dir(old_dir).unwrap();
     unsafe {
-        std::env::remove_var("XFW_RUNTIME_DUMP");
-        std::env::remove_var("XFW_RUNTIME_DUMP_NAME");
+        remove_env_vars(&["XFW_RUNTIME_DUMP", "XFW_RUNTIME_DUMP_NAME"]);;
     }
 }
